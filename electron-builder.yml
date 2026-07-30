@@ -1,5 +1,4 @@
 # ===== Electron Builder 打包配置 =====
-# electron-builder 负责把开发好的代码打包成 .exe 安装包
 
 appId: com.lanchat.desktop
 productName: LanChat
@@ -9,28 +8,29 @@ directories:
   output: release
   buildResources: build
 
-# Windows 配置
+# Windows 配置（免安装便携版 + 安装包）
 win:
   target:
-    - target: nsis
+    - target: portable    # 免安装绿色版，一个 exe 直接双击运行
+      arch: [x64]
+    - target: nsis        # 安装包（需要 NSIS 工具，无则跳过）
       arch: [x64]
   icon: build/icon.ico
 
-# NSIS 安装程序配置（Windows 上常用安装包格式）
+# NSIS 安装程序配置
 nsis:
-  oneClick: false          # 不启用一键安装，提供安装向导
-  perMachine: false        # 每用户安装（不需要管理员权限）
+  oneClick: false
+  perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: LanChat
 
-# 需要打包进 asar 的额外文件
+# 额外文件
 extraResources:
   - from: node_modules/better-sqlite3/build
     to: better-sqlite3/build
 
-# 不打包进 asar 的原生模块
 asarUnpack:
   - '**/*.node'
   - '**/better-sqlite3/**'
