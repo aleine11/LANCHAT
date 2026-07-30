@@ -15,7 +15,7 @@ const fs = require('fs')
 // ===== M2 数据库模块 =====
 const { initTables, closeDatabase } = require('./db/database')
 const { getConfig, setConfig } = require('./db/configDao')
-const { insertMessage, updateMessageStatus, getPendingMessages,
+const { insertMessage, updateMessageStatus, getPendingMessages, deleteMessage,
         getChatHistory, markAsRead, getUnreadCount,
         upsertContact, getRecentContacts, clearUnread } = require('./db/chatDao')
 
@@ -488,6 +488,13 @@ function registerIpcHandlers() {
     }
 
     return { code: 200, data: { retried: pendings.length, success: successCount }, message: 'success' }
+  })
+
+  // [Bugfix] 删除消息
+  ipcMain.handle('invoke:delete-message', async (_e, { messageId }) => {
+    if (!messageId) return { code: 400, data: null, message: '消息ID不能为空' }
+    const success = deleteMessage(messageId)
+    return { code: success ? 200 : 404, data: { success }, message: success ? '已删除' : '消息不存在' }
   })
 
   // ===== 聊天记录 =====

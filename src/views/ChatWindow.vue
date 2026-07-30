@@ -14,6 +14,7 @@
       </div>
       <div class="header-actions">
         <button class="header-btn" @click="reconnect" :title="connected ? '重连' : '重新连接'">🔄</button>
+        <button class="header-btn" title="全屏" @click="toggleFullscreen">{{ isFullscreen ? '❐' : '▢' }}</button>
         <button class="header-btn" title="最小化" @click="minWindow">─</button>
         <button class="header-btn close" title="关闭" @click="closeWindow">✕</button>
       </div>
@@ -41,6 +42,7 @@
           :msg="msg"
           :fromName="chatStore.currentName"
           @preview="previewMsg = msg"
+          @delete="onDelete"
         />
       </transition-group>
     </div>
@@ -110,6 +112,12 @@ async function onSendImage(fileOrPath) {
   }
 }
 
+// [Bugfix] 删除消息
+async function onDelete(msg) {
+  if (!confirm('确认删除这条消息？')) return
+  await chatStore.deleteMessage(msg.messageId)
+}
+
 async function reconnect() {
   if (!chatStore.currentIp) return
   await deviceStore.connect(chatStore.currentIp, 5679)
@@ -117,6 +125,12 @@ async function reconnect() {
 
 function minWindow() {
   window.electronAPI?.minimizeWindow()
+}
+
+const isFullscreen = ref(false)
+function toggleFullscreen() {
+  isFullscreen.value = !isFullscreen.value
+  document.body.classList.toggle('chat-fullscreen', isFullscreen.value)
 }
 
 function closeWindow() {
@@ -196,6 +210,14 @@ onUnmounted(() => { if (retryUnsub) retryUnsub() })
 .reconnect-btn:hover { background: #3A8EE6; }
 .status-dot.connecting { background: #E6A23C; animation: pulse .8s ease-in-out infinite; }
 .status-text.offline { color: #909399 !important; }
+
+/* [Bugfix] 全屏模式 */
+:global(.chat-fullscreen) .chat-page,
+.chat-fullscreen .chat-page {
+  position: fixed; inset: 0;
+  z-index: 9999;
+  background: white;
+}
 
 /* [Bugfix] 断联横幅 - 替代阻断页 */
 .offline-banner {

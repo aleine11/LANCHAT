@@ -147,13 +147,14 @@ async function loadRecentContacts() {
 }
 
 // 点击设备 → 主动建立TCP连接 → 打开聊天
-async function openChat(device) {
+// [优化] TCP连接不阻塞跳转，连接过程在后台进行
+function openChat(device) {
   const ip = device.device_ip || device.ip
   const name = device.device_name || device.name
-  // [修复] 主动连接对方 TCP 端口
-  await deviceStore.connect(ip, 5679)
   chatStore.openChat(ip, name)
   router.push({ name: 'ChatWindow', params: { ip } })
+  // 后台尝试建立TCP连接（不等结果）
+  deviceStore.connect(ip, 5679).catch(() => { /* 静默失败 */ })
 }
 
 // 刷新设备列表

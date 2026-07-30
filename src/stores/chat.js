@@ -164,6 +164,18 @@ export const useChatStore = defineStore('chat', {
     },
 
     /**
+     * [Bugfix] 删除消息
+     */
+    async deleteMessage(messageId) {
+      const res = await chatApi.deleteMessage(messageId)
+      if (res.code === 200) {
+        // 从本地列表移除
+        this.messages = this.messages.filter(m => m.messageId !== messageId)
+      }
+      return res
+    },
+
+    /**
      * 关闭聊天
      */
     closeChat() {

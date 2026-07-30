@@ -217,10 +217,21 @@ function clearUnread(deviceIp) {
   db.prepare('UPDATE contacts SET unread_count = 0 WHERE device_ip = ?').run(deviceIp)
 }
 
+/**
+ * [Bugfix] 删除一条消息（按 messageId）
+ */
+function deleteMessage(messageId) {
+  const db = getDatabase()
+  const stmt = db.prepare('DELETE FROM chat_history WHERE message_id = ?')
+  const result = stmt.run(messageId)
+  return result.changes > 0
+}
+
 module.exports = {
   insertMessage,
   updateMessageStatus,  // [Bugfix]
   getPendingMessages,   // [Bugfix]
+  deleteMessage,        // [Bugfix]
   getChatHistory,
   markAsRead,
   getUnreadCount,

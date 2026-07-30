@@ -1,7 +1,10 @@
 <template>
   <!-- 单条消息气泡 -->
   <!-- message.isSelf: 0=对方(左对齐灰色), 1=自己(右对齐蓝色) -->
-  <div :class="['msg-row', msg.isSelf ? 'self' : 'other']">
+  <div
+    :class="['msg-row', msg.isSelf ? 'self' : 'other']"
+    @contextmenu.prevent="onContextMenu"
+  >
     <div class="msg-avatar" :title="msg.isSelf ? '我' : fromName">
       {{ msg.isSelf ? '🖥️' : '💻' }}
     </div>
@@ -36,8 +39,10 @@
       <div class="msg-meta">
         <span class="msg-time">{{ formatTime(msg.createdAt) }}</span>
         <span v-if="msg.isSelf && msg.status === 'pending'" class="msg-status pending">发送中</span>
-        <span v-else-if="msg.isSelf && msg.status === 'failed'" class="msg-status failed">已失败</span>
+        <span v-else-if="msg.isSelf && msg.status === 'failed'" class="msg-status waiting">待接收</span>
         <span v-else-if="msg.isSelf && msg.status === 'sent'" class="msg-status sent">已发送</span>
+        <!-- [Bugfix] 右键删除消息 -->
+        <span v-if="contextMenuVisible" class="msg-action" @click.stop="$emit('delete', msg)">🗑️ 删除</span>
       </div>
     </div>
   </div>
@@ -51,7 +56,18 @@ const props = defineProps({
   msg: { type: Object, required: true },
   fromName: { type: String, default: '' }
 })
-defineEmits(['preview'])
+defineEmits(['preview', 'delete'])
+
+const contextMenuVisible = ref(false)
+
+function onContextMenu(e) {
+  // 只对自己发送的消息显示删除菜单
+  if (props.msg.isSelf) {
+    contextMenuVisible.value = true
+    // 3秒后自动关闭
+    setTimeout(() => { contextMenuVisible.value = false }, 3000)
+  }
+}
 
 const imageSrc = ref('')
 const imgError = ref(false)
@@ -159,7 +175,14 @@ function formatTime(timeStr) {
 }
 .msg-row.other .msg-meta { justify-content: flex-start; }
 .msg-status { font-size: 10px; padding: 1px 6px; border-radius: 4px; }
-.msg-status.pending { color: #E6A23C; }
-.msg-status.failed { color: #F56C6C; }
-.msg-status.sent { color: #67C23A; }
+.msg-status.pending { color: #909399; }
+.msg-status.waiting { color: #E6A23C; }  /* [Bugfix] 待接收用橙色，不刺眼 */
+.msg-status.sent { color: #909399; }
+.msg-action {
+  background: #F56C6C; color: white;
+  padding: 2px 8px; border-radius: 4px;
+  cursor: pointer; font-size: 11px;
+  margin-left: 4px;
+}
+.msg-action:hover { background: #dd6161; }
 </style>

@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'invoke:send-message',
       'invoke:send-image',
       'invoke:retry-pending',
+      'invoke:delete-message',
       'invoke:get-chat-history',
       'invoke:get-recent-contacts',
       'invoke:get-unread-count',

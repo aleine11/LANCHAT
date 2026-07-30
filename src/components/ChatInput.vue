@@ -5,6 +5,10 @@
       <button class="toolbar-btn" title="选择图片" @click="selectImage">🖼️</button>
       <span class="hint-text">回车发送 · Shift+回车换行 · Ctrl+V粘贴图片 · 拖拽图片到此处</span>
     </div>
+    <!-- [Bugfix] 拖动这个手柄可向上拉高输入框 -->
+    <div class="resize-handle" @mousedown="startDrag">
+      <div class="handle-bar"></div>
+    </div>
     <div class="input-row">
       <textarea
         ref="inputRef"
@@ -12,6 +16,7 @@
         v-model="text"
         :placeholder="props.disabled ? '未连接，无法发送消息' : '输入消息...'"
         rows="1"
+        :style="{ height: inputHeight + 'px' }"
         :disabled="props.disabled"
         @keydown="onKeydown"
         @paste="onPaste"
@@ -32,11 +37,44 @@ const props = defineProps({
 })
 const text = ref('')
 const inputRef = ref(null)
+const inputHeight = ref(38)  // [Bugfix] 用户拖动后的高度
+
+// 拖动手柄逻辑：拖动上边沿拉大输入框
+let dragStartY = 0
+let dragStartHeight = 0
+let isDragging = false
+function startDrag(e) {
+  isDragging = true
+  dragStartY = e.clientY
+  dragStartHeight = inputHeight.value
+  document.body.style.cursor = 'ns-resize'
+  window.addEventListener('mousemove', onDrag)
+  window.addEventListener('mouseup', stopDrag)
+  e.preventDefault()
+}
+function onDrag(e) {
+  if (!isDragging) return
+  // 鼠标向上拖 → 高度增加
+  const delta = dragStartY - e.clientY
+  const newHeight = Math.max(38, Math.min(300, dragStartHeight + delta))
+  inputHeight.value = newHeight
+}
+function stopDrag() {
+  isDragging = false
+  document.body.style.cursor = ''
+  window.removeEventListener('mousemove', onDrag)
+  window.removeEventListener('mouseup', stopDrag)
+}
 
 function autoResize() {
-  if (inputRef.value) {
-    inputRef.value.style.height = 'auto'
-    inputRef.value.style.height = Math.min(inputRef.value.scrollHeight, 200) + 'px'
+  // 不再自动调整高度，由用户手动控制
+  // 但当内容很多时，让高度自动增加到内容所需高度（不超过手动设置的上限）
+  if (inputRef.value && !isDragging) {
+    const scrollH = inputRef.value.scrollHeight
+    // 仅在用户主动输入且内容溢出时扩展
+    if (scrollH > inputHeight.value && scrollH <= 300) {
+      inputHeight.value = scrollH
+    }
   }
 }
 
@@ -44,7 +82,8 @@ function send() {
   if (!text.value.trim()) return
   emit('send', text.value.trim())
   text.value = ''
-  if (inputRef.value) inputRef.value.style.height = 'auto'
+  // 发送后重置为初始高度
+  inputHeight.value = 38
 }
 
 function onKeydown(e) {
@@ -128,6 +167,21 @@ function handleImageFile(file) {
 }
 .toolbar-btn:hover { background: #ECF5FF; color: #409EFF; }
 .hint-text { font-size: 11px; color: #C0C4CC; }
+/* [Bugfix] 拖动上边沿拉高输入框的手柄 */
+.resize-handle {
+  height: 8px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: ns-resize;
+  user-select: none;
+  margin-bottom: 2px;
+}
+.resize-handle:hover .handle-bar { background: #409EFF; }
+.handle-bar {
+  width: 40px; height: 3px;
+  background: #DCDFE6;
+  border-radius: 2px;
+  transition: background .15s;
+}
 .input-row { display: flex; gap: 8px; align-items: flex-end; }
 .input-box {
   flex: 1;
@@ -135,8 +189,6 @@ function handleImageFile(file) {
   border: 1px solid #EBEEF5; border-radius: 8px;
   padding: 8px 12px;
   font-size: 14px; font-family: inherit;
-  resize: vertical;  /* [修复] 允许用户上下拖拽拉长 */
-
   resize: none; outline: none;
   background: #F8F9FB; transition: border-color .2s;
 }
