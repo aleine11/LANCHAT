@@ -5,6 +5,7 @@ node_modules/
 dist/
 out/
 release/
+dist-electron/
 
 # IDE
 .idea/
@@ -24,6 +25,9 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Docs (personal notes, not for repo)
+docs/知识点笔记.md
 
 # Electron
 electron/dist/
