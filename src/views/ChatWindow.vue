@@ -6,8 +6,10 @@
       <button class="back-btn" @click="goBack">←</button>
       <div class="chat-info">
         <span class="chat-name">{{ chatStore.currentName || '对方' }}</span>
-        <span :class="['status-dot', connected ? 'online' : 'offline']"></span>
-        <span class="status-text">{{ connected ? '在线' : '未连接' }}</span>
+        <span :class="['status-dot', connected ? 'online' : (connecting ? 'connecting' : 'offline')]"></span>
+        <span class="status-text" :class="!connected ? 'offline' : ''">
+          {{ connected ? '在线' : (connecting ? '连接中...' : '未连接') }}
+        </span>
         <span class="chat-ip">· {{ chatStore.currentIp }}</span>
       </div>
       <div class="header-actions">
@@ -18,7 +20,13 @@
 
     <!-- 消息列表 -->
     <div class="messages-area" ref="msgAreaRef">
-      <div v-if="chatStore.messages.length === 0" class="empty-chat">
+      <div v-if="!connected" class="empty-chat">
+        <div class="empty-icon">🔌</div>
+        <div v-if="connecting">正在连接到对方...</div>
+        <div v-else>未连接到对方，无法发送消息</div>
+        <button class="reconnect-btn" @click="reconnect">🔄 重新连接</button>
+      </div>
+      <div v-else-if="chatStore.messages.length === 0" class="empty-chat">
         <div class="empty-icon">💬</div>
         <div>开始聊天吧！发送第一条消息打个招呼~</div>
       </div>
@@ -34,7 +42,7 @@
     </div>
 
     <!-- 输入栏 -->
-    <ChatInput @send="onSend" @sendImage="onSendImage" />
+    <ChatInput :disabled="!connected" @send="onSend" @sendImage="onSendImage" />
 
     <!-- 图片预览 -->
     <ImagePreview v-if="previewMsg" :msg="previewMsg" @close="previewMsg = null" />
@@ -58,9 +66,9 @@ const deviceStore = useDeviceStore()
 
 const msgAreaRef = ref(null)
 const previewMsg = ref(null)
-const connected = computed(() => {
-  return deviceStore.getStatus(chatStore.currentIp) === 'connected'
-})
+const status = computed(() => deviceStore.getStatus(chatStore.currentIp))
+const connected = computed(() => status.value === 'connected')
+const connecting = computed(() => status.value === 'connecting')
 
 let unsub = null
 unsub = eventApi.on('on:connection-changed', (info) => {
@@ -89,14 +97,14 @@ async function onSend(content) {
 }
 
 async function onSendImage(fileOrPath) {
-  // 支持两种来源：对话框选文件返回路径字符串 / 粘贴拖拽返回 data URL
-  let imagePath = fileOrPath
   if (typeof fileOrPath === 'string') {
-    imagePath = fileOrPath // 文件路径或 data URL
+    await chatStore.sendImage(fileOrPath)
   }
-  if (imagePath) {
-    await chatStore.sendImage(imagePath)
-  }
+}
+
+async function reconnect() {
+  if (!chatStore.currentIp) return
+  await deviceStore.connect(chatStore.currentIp, 5679)
 }
 </script>
 
@@ -153,6 +161,17 @@ async function onSendImage(fileOrPath) {
   color: #909399; font-size: 14px;
 }
 .empty-icon { font-size: 48px; margin-bottom: 12px; }
+.reconnect-btn {
+  margin-top: 16px;
+  padding: 8px 20px;
+  background: #409EFF; color: white;
+  border: none; border-radius: 20px;
+  font-size: 14px; cursor: pointer;
+  transition: all .2s;
+}
+.reconnect-btn:hover { background: #3A8EE6; }
+.status-dot.connecting { background: #E6A23C; animation: pulse .8s ease-in-out infinite; }
+.status-text.offline { color: #909399 !important; }
 /* 消息入场动画 */
 .msg-enter-active { transition: all .3s ease; }
 .msg-enter-from { opacity: 0; transform: translateY(10px); }

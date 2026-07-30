@@ -122,10 +122,12 @@ async function loadRecentContacts() {
   }
 }
 
-// 点击设备 → 打开聊天
-function openChat(device) {
+// 点击设备 → 主动建立TCP连接 → 打开聊天
+async function openChat(device) {
   const ip = device.device_ip || device.ip
   const name = device.device_name || device.name
+  // [修复] 主动连接对方 TCP 端口
+  await deviceStore.connect(ip, 5679)
   chatStore.openChat(ip, name)
   router.push({ name: 'ChatWindow', params: { ip } })
 }

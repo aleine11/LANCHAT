@@ -10,12 +10,13 @@
         ref="inputRef"
         class="input-box"
         v-model="text"
-        placeholder="输入消息..."
+        :placeholder="props.disabled ? '未连接，无法发送消息' : '输入消息...'"
         rows="1"
+        :disabled="props.disabled"
         @keydown="onKeydown"
         @paste="onPaste"
       ></textarea>
-      <button class="send-btn" @click="send" :disabled="!text.trim()">发送</button>
+      <button class="send-btn" @click="send" :disabled="!text.trim() || props.disabled">发送</button>
     </div>
   </div>
 </template>
@@ -25,6 +26,9 @@ import { ref } from 'vue'
 import { imageApi } from '@/utils/ipc'
 
 const emit = defineEmits(['send', 'sendImage'])
+const props = defineProps({
+  disabled: { type: Boolean, default: false }
+})
 const text = ref('')
 const inputRef = ref(null)
 
