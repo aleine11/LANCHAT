@@ -7,7 +7,7 @@
 //   4. 网络事件（发现设备/收到消息）通过 webContents.send 推送给前端
 //   5. 前端通过 invoke: 调用主进程执行操作
 
-const { app, BrowserWindow, ipcMain, dialog } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage } = require('electron')
 const { join } = require('path')
 const os = require('os')
 const fs = require('fs')
@@ -23,9 +23,11 @@ const { startDiscovery, stopDiscovery, refreshDiscovery, getDiscoveredDevices } 
 const { startServer, stopServer, sendMessage, isConnected, disconnectClient } = require('./tcp/server')
 const { connectToDevice } = require('./tcp/client')
 const { getLocalIP } = require('./utils/netUtil')
+const { saveImage, saveBase64Image } = require('./utils/imageUtil')
 
 const isDev = !app.isPackaged
 let mainWindow = null
+let tray = null
 
 // ===== 窗口创建 =====
 function createWindow() {
@@ -56,6 +58,31 @@ function createWindow() {
   }
 
   mainWindow.on('closed', () => { mainWindow = null })
+
+  // 关闭窗口时隐藏到托盘，不退出
+  mainWindow.on('close', (e) => {
+    if (!app.isQuitting) {
+      e.preventDefault()
+      mainWindow.hide()
+    }
+  })
+}
+
+// ===== M7 系统托盘 =====
+function createTray() {
+  // 用 16x16 的纯色图标
+  const icon = nativeImage.createEmpty()
+  tray = new Tray(icon)
+  tray.setToolTip('LanChat')
+
+  const contextMenu = Menu.buildFromTemplate([
+    { label: '显示窗口', click: () => { mainWindow?.show() } },
+    { type: 'separator' },
+    { label: '退出', click: () => { app.isQuitting = true; app.quit() } }
+  ])
+  tray.setContextMenu(contextMenu)
+  // 双击托盘图标显示窗口
+  tray.on('double-click', () => { mainWindow?.show() })
 }
 
 // ===== 应用生命周期 =====
@@ -64,6 +91,7 @@ app.whenReady().then(() => {
   registerIpcHandlers()     // [M4] 注册 IPC
   startNetworkServices()    // [M4] 启动 UDP/TCP
   createWindow()
+  createTray()              // [M7] 系统托盘
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -75,6 +103,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  app.isQuitting = true
   stopNetworkServices()    // [M4] 停止网络
   closeDatabase()          // [M2] 关闭数据库
 })
@@ -110,14 +139,31 @@ function startNetworkServices() {
     onMessage: (msg) => {
       // 收到 TCP 消息 → 保存到数据库 → 通知前端
       const isImage = msg.messageType === 'image'
+      let content = msg.content
+      let imagePath = null
+      let thumbnailPath = null
+
+      // [M7] 收到图片时保存到本地
+      if (isImage && msg.content) {
+        try {
+          const dataUrl = `data:image/jpeg;base64,${msg.content}`
+          const saved = saveBase64Image(dataUrl, 'recv')
+          content = saved.relativePath
+          imagePath = saved.relativePath
+          thumbnailPath = saved.relativePath
+        } catch (e) {
+          console.error('[Main] 保存收到图片失败:', e.message)
+        }
+      }
+
       insertMessage({
         deviceIp: msg.fromIp,
         deviceName: msg.fromName || '未知设备',
-        content: msg.content,
+        content,
         contentType: msg.messageType || 'text',
-        isSelf: 0,  // 收到的消息
-        thumbnailPath: msg.thumbnailPath,
-        imagePath: msg.imagePath,
+        isSelf: 0,
+        thumbnailPath,
+        imagePath,
         imageSize: msg.imageSize,
         messageId: msg.messageId,
         createdAt: msg.timestamp
@@ -246,17 +292,34 @@ function registerIpcHandlers() {
 
   ipcMain.handle('invoke:send-image', async (_e, { targetIp, filePath }) => {
     if (!targetIp || !filePath) return { code: 400, data: null, message: '参数错误' }
-    if (!fs.existsSync(filePath)) return { code: 404, data: null, message: '图片不存在' }
-    const stat = fs.statSync(filePath)
-    if (stat.size > 20 * 1024 * 1024) return { code: 1005, data: null, message: '图片不能超过20MB' }
+
+    let imageBuffer, fileName, fileSize, relPath
+
+    // 支持文件路径和 data URL（粘贴/拖拽产生）
+    if (filePath.startsWith('data:')) {
+      // data URL：保存到本地并读取
+      const saved = saveBase64Image(filePath, 'paste')
+      relPath = saved.relativePath
+      imageBuffer = fs.readFileSync(saved.savedPath)
+      fileName = saved.fileName
+      fileSize = imageBuffer.length
+    } else {
+      // 本地文件路径
+      if (!fs.existsSync(filePath)) return { code: 404, data: null, message: '图片不存在' }
+      const stat = fs.statSync(filePath)
+      if (stat.size > 20 * 1024 * 1024) return { code: 1005, data: null, message: '图片不能超过20MB' }
+      fileName = require('path').basename(filePath)
+      fileSize = stat.size
+
+      // 复制一份到本地图片目录
+      const saved = saveImage(filePath, 'send')
+      relPath = saved.relativePath
+      imageBuffer = fs.readFileSync(saved.savedPath)
+    }
 
     const messageId = require('crypto').randomUUID()
     const timestamp = new Date().toISOString()
     const userName = getConfig('user_name', '我')
-    const fileName = require('path').basename(filePath)
-
-    // 读取图片转 base64
-    const imageBuffer = fs.readFileSync(filePath)
     const base64Image = imageBuffer.toString('base64')
 
     const sent = sendMessage(targetIp, {
@@ -264,22 +327,13 @@ function registerIpcHandlers() {
       messageType: 'image',
       content: base64Image,
       fileName,
-      imageSize: stat.size,
+      imageSize: fileSize,
       messageId,
       timestamp,
       fromName: userName
     })
 
     if (sent) {
-      // 保存缩略图到本地（简化处理：直接用原图）
-      const thumbDir = join(app.getPath('userData'), 'LanChat', 'images')
-      if (!fs.existsSync(thumbDir)) fs.mkdirSync(thumbDir, { recursive: true })
-      const ext = require('path').extname(filePath) || '.jpg'
-      const saveName = `${messageId}${ext}`
-      const savePath = join(thumbDir, saveName)
-      fs.copyFileSync(filePath, savePath)
-      const relPath = `images/${saveName}`
-
       insertMessage({
         deviceIp: targetIp,
         deviceName: '对方',
@@ -288,7 +342,7 @@ function registerIpcHandlers() {
         isSelf: 1,
         thumbnailPath: relPath,
         imagePath: relPath,
-        imageSize: stat.size,
+        imageSize: fileSize,
         messageId,
         createdAt: timestamp
       })

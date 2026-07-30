@@ -88,11 +88,15 @@ async function onSend(content) {
   await chatStore.sendMessage(content)
 }
 
-async function onSendImage(file) {
-  // For paste events, we need to handle the file
-  // The IPC will handle file selection via dialog
-  // For now, just note it
-  console.log('[Chat] 图片发送（M7完善）:', file?.name)
+async function onSendImage(fileOrPath) {
+  // 支持两种来源：对话框选文件返回路径字符串 / 粘贴拖拽返回 data URL
+  let imagePath = fileOrPath
+  if (typeof fileOrPath === 'string') {
+    imagePath = fileOrPath // 文件路径或 data URL
+  }
+  if (imagePath) {
+    await chatStore.sendImage(imagePath)
+  }
 }
 </script>
 
