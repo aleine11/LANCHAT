@@ -43,6 +43,7 @@ export const chatApi = {
   sendMessage: (targetIp, content) => call('invoke:send-message', { targetIp, content }),
   sendImage: (targetIp, filePath) => call('invoke:send-image', { targetIp, filePath }),
   getHistory: (deviceIp, page = 1, pageSize = 20) => call('invoke:get-chat-history', { deviceIp, page, pageSize }),
+  getAllMessages: (deviceIp) => call('invoke:get-all-messages', { deviceIp }),
   getRecentContacts: () => call('invoke:get-recent-contacts'),
   getUnreadCount: (deviceIp) => call('invoke:get-unread-count', { deviceIp }),
   deleteMessage: (messageId) => call('invoke:delete-message', { messageId })

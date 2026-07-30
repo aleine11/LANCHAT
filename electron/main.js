@@ -16,7 +16,7 @@ const fs = require('fs')
 const { initTables, closeDatabase } = require('./db/database')
 const { getConfig, setConfig } = require('./db/configDao')
 const { insertMessage, updateMessageStatus, getPendingMessages, deleteMessage,
-        getChatHistory, markAsRead, getUnreadCount,
+        getChatHistory, getAllMessages, markAsRead, getUnreadCount,
         upsertContact, getRecentContacts, clearUnread } = require('./db/chatDao')
 
 // ===== M3 网络模块 =====
@@ -234,13 +234,15 @@ function startNetworkServices() {
         isFromOther: true
       })
       // 推送给前端
+      // [Bugfix] 用本地已保存的相对路径（content/imagePath/thumbnailPath），
+      //          而不是原始 TCP base64（msg.content），否则前端当成相对路径解析导致裂图
       mainWindow?.webContents.send('on:message-received', {
         fromIp: msg.fromIp,
         fromName: msg.fromName,
         messageType: msg.messageType,
-        content: msg.content,
-        thumbnailPath: msg.thumbnailPath,
-        imagePath: msg.imagePath,
+        content,
+        thumbnailPath,
+        imagePath,
         imageSize: msg.imageSize,
         timestamp: msg.timestamp,
         messageId: msg.messageId
@@ -355,9 +357,9 @@ function registerIpcHandlers() {
     // [Bugfix] 根据发送结果更新状态
     updateMessageStatus(messageId, sent ? 'sent' : 'failed')
 
-    if (sent) {
-      upsertContact({ deviceIp: targetIp, deviceName: '对方', lastMessage: content })
-    }
+    // [Bugfix] 无论是否连接成功，都更新联系人
+    // 这样用户断联发送后退出再进入，依然能在「最近联系人」里看到对方
+    upsertContact({ deviceIp: targetIp, deviceName: '对方', lastMessage: content })
 
     return {
       code: 200,  // 总是返回 200，因为消息已存库
@@ -428,13 +430,12 @@ function registerIpcHandlers() {
     // [Bugfix] 更新状态
     updateMessageStatus(messageId, sent ? 'sent' : 'failed')
 
-    if (sent) {
-      upsertContact({ deviceIp: targetIp, deviceName: '对方', lastMessage: '[图片]' })
-    }
+    // [Bugfix] 无论是否连接成功，都更新联系人
+    upsertContact({ deviceIp: targetIp, deviceName: '对方', lastMessage: '[图片]' })
 
     return {
       code: 200,
-      data: { success: sent, messageId, timestamp, status: sent ? 'sent' : 'failed' },
+      data: { success: sent, messageId, timestamp, status: sent ? 'sent' : 'failed', relPath },
       message: sent ? 'success' : '图片已保存，待重连后发送'
     }
   })
@@ -505,6 +506,16 @@ function registerIpcHandlers() {
     markAsRead(deviceIp)
     clearUnread(deviceIp)
     return { code: 200, data: result, message: 'success' }
+  })
+
+  // [新增] 全量加载某设备的聊天记录（不翻页）
+  ipcMain.handle('invoke:get-all-messages', async (_e, { deviceIp }) => {
+    if (!deviceIp) return { code: 400, data: null, message: '设备IP不能为空' }
+    const list = getAllMessages(deviceIp)
+    // 查历史时标记已读
+    markAsRead(deviceIp)
+    clearUnread(deviceIp)
+    return { code: 200, data: { list }, message: 'success' }
   })
 
   ipcMain.handle('invoke:get-recent-contacts', async () => {

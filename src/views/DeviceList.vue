@@ -102,24 +102,6 @@ const recentList = ref([])
 let scanTimer = null
 let refreshTimer = null
 
-// 提示音（Web Audio API 简单蜂鸣）
-let audioCtx = null
-function playNotificationSound() {
-  try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
-    const osc = audioCtx.createOscillator()
-    const gain = audioCtx.createGain()
-    osc.connect(gain)
-    gain.connect(audioCtx.destination)
-    osc.frequency.value = 800
-    osc.type = 'sine'
-    gain.gain.value = 0.15
-    osc.start()
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2)
-    osc.stop(audioCtx.currentTime + 0.2)
-  } catch (e) { /* 静默忽略 */ }
-}
-
 onMounted(async () => {
   loadRecentContacts()
   // 每 5 秒自动刷新最近联系人
@@ -130,10 +112,9 @@ onMounted(async () => {
     scanning.value = false
     if (scanTimer) clearTimeout(scanTimer)
   })
-  // 收到新消息时刷新联系人 + 播放提示音
+  // [Bugfix] 收到新消息只刷新联系人列表；提示音已在 App.vue 全局订阅
   const msgUnsub = eventApi.on('on:message-received', () => {
     loadRecentContacts()
-    playNotificationSound()
   })
   onUnmounted(() => { unsub(); msgUnsub(); })
 })
@@ -151,12 +132,13 @@ async function loadRecentContacts() {
   }
 }
 
-// 点击设备 → 主动建立TCP连接 → 打开聊天
-// [优化] TCP连接不阻塞跳转，连接过程在后台进行
-function openChat(device) {
+// 点击设备 → 加载历史消息 → 打开聊天 → 后台建立TCP连接
+// [Bugfix] 必须 await openChat 确保消息先加载完再跳转，否则聊天窗口打开时消息还是空的
+async function openChat(device) {
   const ip = device.device_ip || device.ip
   const name = device.device_name || device.name
-  chatStore.openChat(ip, name)
+  // [关键] 先等待消息从数据库加载完成，再跳转页面
+  await chatStore.openChat(ip, name)
   router.push({ name: 'ChatWindow', params: { ip } })
   // 后台尝试建立TCP连接（不等结果）
   deviceStore.connect(ip, 5679).catch(() => { /* 静默失败 */ })

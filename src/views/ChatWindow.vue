@@ -51,7 +51,7 @@
 
 <script setup>
 import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useChatStore } from '@/stores/chat'
 import { useDeviceStore } from '@/stores/device'
 import { eventApi } from '@/utils/ipc'
@@ -62,6 +62,7 @@ import ImagePreview from '@/components/ImagePreview.vue'
 import TitleBar from '@/components/TitleBar.vue'
 
 const router = useRouter()
+const route = useRoute()
 const chatStore = useChatStore()
 const deviceStore = useDeviceStore()
 
@@ -70,9 +71,21 @@ const previewMsg = ref(null)
 const status = computed(() => deviceStore.getStatus(chatStore.currentIp))
 const connected = computed(() => status.value === 'connected')
 const connecting = computed(() => status.value === 'connecting')
-// [Bugfix] 待发送消息数
+// [Bugfix] 待发送消息数（含 pending 和 failed）
 const pendingCount = computed(() => {
   return chatStore.messages.filter(m => m.isSelf && (m.status === 'pending' || m.status === 'failed')).length
+})
+
+// [Bugfix] 组件挂载时确保消息已加载（兜底保护）
+onMounted(async () => {
+  // 情况1：当前IP已设但消息为空 → 说明数据还没加载
+  if (chatStore.currentIp && chatStore.messages.length === 0) {
+    await chatStore.refresh()
+  }
+  // 情况2：当前IP为空 → 从路由参数获取并加载（边缘情况：直接访问URL等）
+  if (!chatStore.currentIp && route.params.ip) {
+    await chatStore.openChat(route.params.ip, '对方')
+  }
 })
 
 let unsub = null
@@ -83,14 +96,17 @@ unsub = eventApi.on('on:connection-changed', (info) => {
 })
 onUnmounted(() => { if (unsub) unsub() })
 
-// 自动滚到底部
-watch(() => chatStore.messages.length, () => {
+// [Bugfix] 消息变化时自动滚到底部 + immediate 确保首次进入也执行
+function scrollToBottom() {
   nextTick(() => {
     if (msgAreaRef.value) {
       msgAreaRef.value.scrollTop = msgAreaRef.value.scrollHeight
     }
   })
-})
+}
+watch(() => chatStore.messages.length, scrollToBottom, { immediate: true })
+// [Bugfix] 消息内容变化（如状态从 pending 变为 sent）也触发滚动
+watch(() => chatStore.messages.map(m => m.status).join(','), scrollToBottom)
 
 function goBack() {
   chatStore.closeChat()

@@ -113,11 +113,10 @@ function getChatHistory(deviceIp, page = 1, pageSize = 20) {
   )
   const { total } = countStmt.get(deviceIp)
 
-  // [Bugfix] 按时间倒序查询，最新的在 offset=0
-  // 计算实际 offset：page=1 取最后 N 条，page=2 取倒数第 2N 条，依此类推
+  // [Bugfix] page=1 取最新 pageSize 条（offset=0 在倒序中=最新消息）
+  // 原先的 fromEnd 公式把 page=1 和 page=N 搞反了，导致每次进入聊天看到最旧而非最新消息
   const totalPages = Math.ceil(total / pageSize)
-  const fromEnd = totalPages - page + 1  // 从后往前数第几页
-  const offset = Math.max(0, (fromEnd - 1) * pageSize)
+  const offset = (page - 1) * pageSize
 
   const listStmt = db.prepare(`
     SELECT id, device_ip, device_name, content, content_type, is_self,
@@ -244,12 +243,33 @@ function deleteMessage(messageId) {
   return result.changes > 0
 }
 
+/**
+ * [简化] 获取某设备的全部聊天记录（不分页）
+ * 本地聊天消息量有限（几百条），全部加载更简单可靠
+ *
+ * @param {string} deviceIp - 对方IP
+ * @returns {Array} 消息列表（按时间正序：旧的在前，新的在后）
+ */
+function getAllMessages(deviceIp) {
+  const db = getDatabase()
+  const list = db.prepare(`
+    SELECT id, device_ip, device_name, content, content_type, is_self,
+           thumbnail_path, image_path, image_size, image_width, image_height,
+           is_read, message_id, status, created_at
+    FROM chat_history
+    WHERE device_ip = ?
+    ORDER BY created_at ASC
+  `).all(deviceIp)
+  return list
+}
+
 module.exports = {
   insertMessage,
   updateMessageStatus,  // [Bugfix]
   getPendingMessages,   // [Bugfix]
   deleteMessage,        // [Bugfix]
-  getChatHistory,
+  getChatHistory,       // 保留旧的分页接口（兼容）
+  getAllMessages,       // [新增] 全量消息查询
   markAsRead,
   getUnreadCount,
   upsertContact,
