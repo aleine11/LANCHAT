@@ -8,16 +8,11 @@ directories:
   output: release
   buildResources: build
 
-# Windows 配置（免安装便携版 + 安装包）
 win:
   target:
-    - target: portable    # 免安装绿色版，一个 exe 直接双击运行
+    - target: nsis
       arch: [x64]
-    - target: nsis        # 安装包（需要 NSIS 工具，无则跳过）
-      arch: [x64]
-  icon: build/icon.ico
 
-# NSIS 安装程序配置
 nsis:
   oneClick: false
   perMachine: false
@@ -25,8 +20,8 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: LanChat
+  artifactName: "LanChat-Setup.${ext}"
 
-# 额外文件
 extraResources:
   - from: node_modules/better-sqlite3/build
     to: better-sqlite3/build
