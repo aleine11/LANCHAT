@@ -8,18 +8,17 @@ directories:
   output: release
   buildResources: build
 
-# 测试用：只生成绿色免安装文件夹（不做安装包，不签nsis）
 win:
   target:
     - target: dir
       arch: [x64]
 
-# 额外文件
+# 额外文件：把 .node 二进制从 asar 中分离（native 模块不能在 asar 里）
 extraResources:
   - from: node_modules/better-sqlite3/build
     to: better-sqlite3/build
 
+# 关键修复：只解压 .node 文件，不要解压整个 better-sqlite3 目录
+# better-sqlite3 的 JS/JSON 文件必须留在 asar 里，否则 require 找不到
 asarUnpack:
   - '**/*.node'
-  - '**/better-sqlite3/**'
-  - '**/sharp/**'
