@@ -8,20 +8,13 @@ directories:
   output: release
   buildResources: build
 
+# 测试用：只生成绿色免安装文件夹（不做安装包，不签nsis）
 win:
   target:
-    - target: nsis
+    - target: dir
       arch: [x64]
 
-nsis:
-  oneClick: false
-  perMachine: false
-  allowToChangeInstallationDirectory: true
-  createDesktopShortcut: true
-  createStartMenuShortcut: true
-  shortcutName: LanChat
-  artifactName: "LanChat-Setup.${ext}"
-
+# 额外文件
 extraResources:
   - from: node_modules/better-sqlite3/build
     to: better-sqlite3/build
