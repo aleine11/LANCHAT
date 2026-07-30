@@ -98,7 +98,6 @@ function initTables() {
     console.log('[数据库] 迁移：添加 status 字段到 chat_history')
     database.exec("ALTER TABLE chat_history ADD COLUMN status TEXT NOT NULL DEFAULT 'sent'")
   }
-  `)
 
   // ===== 表2：配置表 =====
   database.exec(`
