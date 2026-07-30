@@ -10,7 +10,7 @@
       <p>项目骨架搭建成功！</p>
       <p class="sub">Electron + Vue 3 + Vite 已就绪</p>
       <div class="info">
-        <span>下一步：M2 数据库层 → M3 网络层</span>
+        <span>下一步：M4 IPC 通信整合</span>
       </div>
     </div>
   </div>
