@@ -14,7 +14,8 @@
       </div>
       <div class="header-actions">
         <button class="header-btn" @click="reconnect" :title="connected ? '重连' : '重新连接'">🔄</button>
-        <button class="header-btn close" @click="closeWindow">✕</button>
+        <button class="header-btn" title="最小化" @click="minWindow">─</button>
+        <button class="header-btn close" title="关闭" @click="closeWindow">✕</button>
       </div>
     </div>
 
@@ -114,10 +115,12 @@ async function reconnect() {
   await deviceStore.connect(chatStore.currentIp, 5679)
 }
 
+function minWindow() {
+  window.electronAPI?.minimizeWindow()
+}
+
 function closeWindow() {
-  if (window.electronAPI?.closeWindow) {
-    window.electronAPI.closeWindow()
-  }
+  window.electronAPI?.closeWindow()
 }
 
 // [Bugfix] 监听重试完成，刷新消息状态

@@ -95,23 +95,47 @@ const scanning = ref(true)
 const refreshing = ref(false)
 const recentList = ref([])
 let scanTimer = null
+let refreshTimer = null
+
+// 提示音（Web Audio API 简单蜂鸣）
+let audioCtx = null
+function playNotificationSound() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+    const osc = audioCtx.createOscillator()
+    const gain = audioCtx.createGain()
+    osc.connect(gain)
+    gain.connect(audioCtx.destination)
+    osc.frequency.value = 800
+    osc.type = 'sine'
+    gain.gain.value = 0.15
+    osc.start()
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2)
+    osc.stop(audioCtx.currentTime + 0.2)
+  } catch (e) { /* 静默忽略 */ }
+}
 
 onMounted(async () => {
   loadRecentContacts()
-  // 10秒后如果还没发现设备，从扫描中切换到空状态
-  scanTimer = setTimeout(() => {
-    scanning.value = false
-  }, 10000)
-  // 当第一个设备出现时，立即结束扫描状态
+  // 每 5 秒自动刷新最近联系人
+  refreshTimer = setInterval(loadRecentContacts, 5000)
+
+  scanTimer = setTimeout(() => { scanning.value = false }, 10000)
   const unsub = eventApi.on('on:device-discovered', () => {
     scanning.value = false
     if (scanTimer) clearTimeout(scanTimer)
   })
-  onUnmounted(() => unsub())
+  // 收到新消息时刷新联系人 + 播放提示音
+  const msgUnsub = eventApi.on('on:message-received', () => {
+    loadRecentContacts()
+    playNotificationSound()
+  })
+  onUnmounted(() => { unsub(); msgUnsub(); })
 })
 
 onUnmounted(() => {
   if (scanTimer) clearTimeout(scanTimer)
+  if (refreshTimer) clearInterval(refreshTimer)
 })
 
 // 加载最近联系人

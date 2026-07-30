@@ -15,6 +15,7 @@
         :disabled="props.disabled"
         @keydown="onKeydown"
         @paste="onPaste"
+        @input="autoResize"
       ></textarea>
       <button class="send-btn" @click="send" :disabled="!text.trim() || props.disabled">发送</button>
     </div>
@@ -31,6 +32,13 @@ const props = defineProps({
 })
 const text = ref('')
 const inputRef = ref(null)
+
+function autoResize() {
+  if (inputRef.value) {
+    inputRef.value.style.height = 'auto'
+    inputRef.value.style.height = Math.min(inputRef.value.scrollHeight, 200) + 'px'
+  }
+}
 
 function send() {
   if (!text.value.trim()) return
@@ -123,10 +131,12 @@ function handleImageFile(file) {
 .input-row { display: flex; gap: 8px; align-items: flex-end; }
 .input-box {
   flex: 1;
-  min-height: 38px; max-height: 100px;
+  min-height: 38px; max-height: 200px;
   border: 1px solid #EBEEF5; border-radius: 8px;
   padding: 8px 12px;
   font-size: 14px; font-family: inherit;
+  resize: vertical;  /* [修复] 允许用户上下拖拽拉长 */
+
   resize: none; outline: none;
   background: #F8F9FB; transition: border-color .2s;
 }
