@@ -51,7 +51,8 @@ onMounted(async () => {
     try {
       const res = await imageApi.getPath(props.msg.imagePath)
       if (res.code === 200 && res.data.fullPath) {
-        imageSrc.value = 'file://' + res.data.fullPath
+        // Windows 路径转 file:/// 协议
+        imageSrc.value = 'file:///' + res.data.fullPath.replace(/\\/g, '/')
         return
       }
     } catch (e) { /* fallback */ }
@@ -66,7 +67,7 @@ onMounted(async () => {
     try {
       const res = await imageApi.getPath(props.msg.content)
       if (res.code === 200 && res.data.fullPath) {
-        imageSrc.value = 'file://' + res.data.fullPath
+        imageSrc.value = 'file:///' + res.data.fullPath.replace(/\\/g, '/')
       }
     } catch (e) { /* fallback */ }
   }

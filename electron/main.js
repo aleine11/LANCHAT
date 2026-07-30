@@ -15,7 +15,8 @@ const fs = require('fs')
 // ===== M2 数据库模块 =====
 const { initTables, closeDatabase } = require('./db/database')
 const { getConfig, setConfig } = require('./db/configDao')
-const { insertMessage, getChatHistory, markAsRead, getUnreadCount,
+const { insertMessage, updateMessageStatus, getPendingMessages,
+        getChatHistory, markAsRead, getUnreadCount,
         upsertContact, getRecentContacts, clearUnread } = require('./db/chatDao')
 
 // ===== M3 网络模块 =====
@@ -42,7 +43,8 @@ function createWindow() {
       preload: join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false
+      sandbox: false,
+      webSecurity: false  // [Bugfix] 允许加载本地图片（file:// 协议）
     },
     icon: join(__dirname, '../src/assets/icons/icon.png'),
     show: false
@@ -118,6 +120,62 @@ ipcMain.on('window:close', () => mainWindow && mainWindow.close())
 // ====================================================
 //  [M4] 启动网络服务（UDP发现 + TCP服务端）
 // ====================================================
+
+// [Bugfix] 重试某设备所有 pending/failed 消息
+function retryPendingMessages(deviceIp) {
+  const pendings = getPendingMessages(deviceIp)
+  if (pendings.length === 0) return
+  const userName = getConfig('user_name', '我')
+  let successCount = 0
+
+  for (const msg of pendings) {
+    let payload = null
+    if (msg.content_type === 'text') {
+      payload = {
+        type: 'text',
+        content: msg.content,
+        messageId: msg.message_id,
+        timestamp: msg.created_at,
+        fromName: userName
+      }
+    } else if (msg.content_type === 'image') {
+      try {
+        const fullPath = join(app.getPath('userData'), 'LanChat', msg.image_path || msg.content)
+        if (fs.existsSync(fullPath)) {
+          const buf = fs.readFileSync(fullPath)
+          payload = {
+            type: 'image',
+            messageType: 'image',
+            content: buf.toString('base64'),
+            imageSize: msg.image_size,
+            messageId: msg.message_id,
+            timestamp: msg.created_at,
+            fromName: userName
+          }
+        }
+      } catch (e) { /* skip */ }
+    }
+
+    if (payload) {
+      const sent = sendMessage(deviceIp, payload)
+      if (sent) {
+        updateMessageStatus(msg.message_id, 'sent')
+        successCount++
+      } else {
+        updateMessageStatus(msg.message_id, 'failed')
+      }
+    }
+  }
+
+  console.log(`[Main] 重试完成: ${successCount}/${pendings.length} 成功`)
+  // 通知前端更新状态
+  mainWindow?.webContents.send('on:retry-completed', {
+    deviceIp,
+    retried: pendings.length,
+    success: successCount
+  })
+}
+
 function startNetworkServices() {
   const userName = getConfig('user_name', '用户-' + (os.hostname() || 'Unknown'))
 
@@ -190,6 +248,10 @@ function startNetworkServices() {
     },
     onConnection: (info) => {
       mainWindow?.webContents.send('on:connection-changed', info)
+      // [Bugfix] 连接建立时自动重试该设备的所有未发送消息
+      if (info.status === 'connected' && info.deviceIp) {
+        setTimeout(() => retryPendingMessages(info.deviceIp), 500)
+      }
     }
   })
 }
@@ -247,6 +309,12 @@ function registerIpcHandlers() {
     if (result.success) {
       // 通知联系人表
       upsertContact({ deviceIp: targetIp, deviceName: '对方', lastMessage: '开始聊天' })
+      // [Bugfix] 重连后自动重试该设备的未发送消息
+      const pendings = getPendingMessages(targetIp)
+      if (pendings.length > 0) {
+        console.log(`[Main] 连接成功，重试 ${pendings.length} 条未发送消息给 ${targetIp}`)
+        setTimeout(() => retryPendingMessages(targetIp), 500)
+      }
     }
     return { code: result.success ? 200 : 408, data: result, message: result.message || 'success' }
   })
@@ -263,7 +331,19 @@ function registerIpcHandlers() {
     const timestamp = new Date().toISOString()
     const userName = getConfig('user_name', '我')
 
-    // 通过 TCP 发送
+    // [Bugfix] 无论 TCP 是否成功，先存到数据库（保证不丢失）
+    insertMessage({
+      deviceIp: targetIp,
+      deviceName: '对方',
+      content,
+      contentType: 'text',
+      isSelf: 1,
+      messageId,
+      status: 'pending',  // 先标记为发送中
+      createdAt: timestamp
+    })
+
+    // 尝试通过 TCP 发送
     const sent = sendMessage(targetIp, {
       type: 'text',
       content,
@@ -272,22 +352,18 @@ function registerIpcHandlers() {
       fromName: userName
     })
 
+    // [Bugfix] 根据发送结果更新状态
+    updateMessageStatus(messageId, sent ? 'sent' : 'failed')
+
     if (sent) {
-      // 保存到数据库
-      insertMessage({
-        deviceIp: targetIp,
-        deviceName: '对方',
-        content,
-        contentType: 'text',
-        isSelf: 1,
-        messageId,
-        createdAt: timestamp
-      })
-      // 更新联系人
       upsertContact({ deviceIp: targetIp, deviceName: '对方', lastMessage: content })
     }
 
-    return { code: sent ? 200 : 401, data: { success: sent, messageId, timestamp }, message: sent ? 'success' : '连接未建立' }
+    return {
+      code: 200,  // 总是返回 200，因为消息已存库
+      data: { success: sent, messageId, timestamp, status: sent ? 'sent' : 'failed' },
+      message: sent ? 'success' : '消息已保存，待重连后发送'
+    }
   })
 
   ipcMain.handle('invoke:send-image', async (_e, { targetIp, filePath }) => {
@@ -322,6 +398,22 @@ function registerIpcHandlers() {
     const userName = getConfig('user_name', '我')
     const base64Image = imageBuffer.toString('base64')
 
+    // [Bugfix] 无论 TCP 是否成功，先存到数据库
+    insertMessage({
+      deviceIp: targetIp,
+      deviceName: '对方',
+      content: relPath,
+      contentType: 'image',
+      isSelf: 1,
+      thumbnailPath: relPath,
+      imagePath: relPath,
+      imageSize: fileSize,
+      messageId,
+      status: 'pending',
+      createdAt: timestamp
+    })
+
+    // 尝试发送
     const sent = sendMessage(targetIp, {
       type: 'image',
       messageType: 'image',
@@ -333,23 +425,69 @@ function registerIpcHandlers() {
       fromName: userName
     })
 
+    // [Bugfix] 更新状态
+    updateMessageStatus(messageId, sent ? 'sent' : 'failed')
+
     if (sent) {
-      insertMessage({
-        deviceIp: targetIp,
-        deviceName: '对方',
-        content: relPath,
-        contentType: 'image',
-        isSelf: 1,
-        thumbnailPath: relPath,
-        imagePath: relPath,
-        imageSize: fileSize,
-        messageId,
-        createdAt: timestamp
-      })
       upsertContact({ deviceIp: targetIp, deviceName: '对方', lastMessage: '[图片]' })
     }
 
-    return { code: sent ? 200 : 401, data: { success: sent, messageId, timestamp }, message: sent ? 'success' : '连接未建立' }
+    return {
+      code: 200,
+      data: { success: sent, messageId, timestamp, status: sent ? 'sent' : 'failed' },
+      message: sent ? 'success' : '图片已保存，待重连后发送'
+    }
+  })
+
+  // [Bugfix] 重试某设备的未发送消息（重连时调用）
+  ipcMain.handle('invoke:retry-pending', async (_e, { deviceIp }) => {
+    if (!deviceIp) return { code: 400, data: null, message: '设备IP不能为空' }
+    const pendings = getPendingMessages(deviceIp)
+    const userName = getConfig('user_name', '我')
+    let successCount = 0
+
+    for (const msg of pendings) {
+      let payload
+      if (msg.content_type === 'text') {
+        payload = {
+          type: 'text',
+          content: msg.content,
+          messageId: msg.message_id,
+          timestamp: msg.created_at,
+          fromName: userName
+        }
+      } else {
+        // 图片：重新读 base64 重发
+        try {
+          const fs = require('fs')
+          const fullPath = require('path').join(app.getPath('userData'), 'LanChat', msg.image_path || msg.content)
+          if (fs.existsSync(fullPath)) {
+            const buf = fs.readFileSync(fullPath)
+            payload = {
+              type: 'image',
+              messageType: 'image',
+              content: buf.toString('base64'),
+              imageSize: msg.image_size,
+              messageId: msg.message_id,
+              timestamp: msg.created_at,
+              fromName: userName
+            }
+          }
+        } catch (e) { /* 跳过 */ }
+      }
+
+      if (payload) {
+        const sent = sendMessage(deviceIp, payload)
+        if (sent) {
+          updateMessageStatus(msg.message_id, 'sent')
+          successCount++
+        } else {
+          updateMessageStatus(msg.message_id, 'failed')
+        }
+      }
+    }
+
+    return { code: 200, data: { retried: pendings.length, success: successCount }, message: 'success' }
   })
 
   // ===== 聊天记录 =====

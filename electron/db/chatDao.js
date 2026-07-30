@@ -35,11 +35,11 @@ function insertMessage(msg) {
     INSERT INTO chat_history
       (device_ip, device_name, content, content_type, is_self,
        thumbnail_path, image_path, image_size, image_width, image_height,
-       is_read, message_id, created_at)
+       is_read, message_id, status, created_at)
     VALUES
       (@deviceIp, @deviceName, @content, @contentType, @isSelf,
        @thumbnailPath, @imagePath, @imageSize, @imageWidth, @imageHeight,
-       @isRead, @messageId, @createdAt)
+       @isRead, @messageId, @status, @createdAt)
   `)
 
   const result = stmt.run({
@@ -53,12 +53,36 @@ function insertMessage(msg) {
     imageSize: msg.imageSize || null,
     imageWidth: msg.imageWidth || null,
     imageHeight: msg.imageHeight || null,
-    isRead: msg.isSelf ? 1 : 0,  // 自己发的消息默认已读，收到的默认未读
+    isRead: msg.isSelf ? 1 : 0,
     messageId: msg.messageId,
+    status: msg.status || 'sent',  // [Bugfix] 默认已发送
     createdAt: msg.createdAt || new Date().toISOString()
   })
 
   return result.lastInsertRowid
+}
+
+/**
+ * 更新消息状态（发送中 → 已发送/失败）
+ * [Bugfix] 用于消息可靠传输
+ */
+function updateMessageStatus(messageId, status) {
+  const db = getDatabase()
+  const stmt = db.prepare('UPDATE chat_history SET status = ? WHERE message_id = ?')
+  const result = stmt.run(status, messageId)
+  return result.changes > 0
+}
+
+/**
+ * 获取某设备的发送中/失败消息（重试用）
+ */
+function getPendingMessages(deviceIp) {
+  const db = getDatabase()
+  return db.prepare(`
+    SELECT * FROM chat_history
+    WHERE device_ip = ? AND is_self = 1 AND status IN ('pending', 'failed')
+    ORDER BY created_at ASC
+  `).all(deviceIp)
 }
 
 /**
@@ -83,7 +107,7 @@ function getChatHistory(deviceIp, page = 1, pageSize = 20) {
   const listStmt = db.prepare(`
     SELECT id, device_ip, device_name, content, content_type, is_self,
            thumbnail_path, image_path, image_size, image_width, image_height,
-           is_read, message_id, created_at
+           is_read, message_id, status, created_at
     FROM chat_history
     WHERE device_ip = ?
     ORDER BY created_at ASC
@@ -195,6 +219,8 @@ function clearUnread(deviceIp) {
 
 module.exports = {
   insertMessage,
+  updateMessageStatus,  // [Bugfix]
+  getPendingMessages,   // [Bugfix]
   getChatHistory,
   markAsRead,
   getUnreadCount,

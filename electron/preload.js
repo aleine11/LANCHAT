@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'invoke:disconnect-device',
       'invoke:send-message',
       'invoke:send-image',
+      'invoke:retry-pending',
       'invoke:get-chat-history',
       'invoke:get-recent-contacts',
       'invoke:get-unread-count',
@@ -39,7 +40,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'on:device-discovered',
       'on:device-offline',
       'on:connection-changed',
-      'on:message-received'
+      'on:message-received',
+      'on:retry-completed'
     ]
     if (allowedChannels.includes(channel)) {
       // 包装回调，返回取消监听的函数

@@ -13,27 +13,30 @@
         <span class="chat-ip">· {{ chatStore.currentIp }}</span>
       </div>
       <div class="header-actions">
-        <button class="header-btn">─</button>
-        <button class="header-btn close">✕</button>
+        <button class="header-btn" @click="reconnect" :title="connected ? '重连' : '重新连接'">🔄</button>
+        <button class="header-btn close" @click="closeWindow">✕</button>
       </div>
+    </div>
+
+    <!-- [Bugfix] 断联提示横幅 - 仍可聊天 -->
+    <div v-if="!connected" class="offline-banner">
+      <span class="banner-icon">{{ connecting ? '🔄' : '⚠️' }}</span>
+      <span class="banner-text">
+        {{ connecting ? '正在连接...消息将在连接成功后发送' : '对方已离线，你可以继续输入消息，重连后自动发送' }}
+      </span>
+      <span v-if="pendingCount > 0" class="pending-badge">{{ pendingCount }}条待发送</span>
     </div>
 
     <!-- 消息列表 -->
     <div class="messages-area" ref="msgAreaRef">
-      <div v-if="!connected" class="empty-chat">
-        <div class="empty-icon">🔌</div>
-        <div v-if="connecting">正在连接到对方...</div>
-        <div v-else>未连接到对方，无法发送消息</div>
-        <button class="reconnect-btn" @click="reconnect">🔄 重新连接</button>
-      </div>
-      <div v-else-if="chatStore.messages.length === 0" class="empty-chat">
+      <div v-if="chatStore.messages.length === 0" class="empty-chat">
         <div class="empty-icon">💬</div>
         <div>开始聊天吧！发送第一条消息打个招呼~</div>
       </div>
       <transition-group name="msg" v-else>
         <MessageBubble
           v-for="msg in chatStore.messages"
-          :key="msg.id"
+          :key="msg.id || msg.messageId"
           :msg="msg"
           :fromName="chatStore.currentName"
           @preview="previewMsg = msg"
@@ -41,8 +44,8 @@
       </transition-group>
     </div>
 
-    <!-- 输入栏 -->
-    <ChatInput :disabled="!connected" @send="onSend" @sendImage="onSendImage" />
+    <!-- [Bugfix] 始终允许输入，断联时消息存库待重发 -->
+    <ChatInput @send="onSend" @sendImage="onSendImage" />
 
     <!-- 图片预览 -->
     <ImagePreview v-if="previewMsg" :msg="previewMsg" @close="previewMsg = null" />
@@ -50,7 +53,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, watch, onUnmounted } from 'vue'
+import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useChatStore } from '@/stores/chat'
 import { useDeviceStore } from '@/stores/device'
@@ -69,6 +72,10 @@ const previewMsg = ref(null)
 const status = computed(() => deviceStore.getStatus(chatStore.currentIp))
 const connected = computed(() => status.value === 'connected')
 const connecting = computed(() => status.value === 'connecting')
+// [Bugfix] 待发送消息数
+const pendingCount = computed(() => {
+  return chatStore.messages.filter(m => m.isSelf && (m.status === 'pending' || m.status === 'failed')).length
+})
 
 let unsub = null
 unsub = eventApi.on('on:connection-changed', (info) => {
@@ -106,6 +113,20 @@ async function reconnect() {
   if (!chatStore.currentIp) return
   await deviceStore.connect(chatStore.currentIp, 5679)
 }
+
+function closeWindow() {
+  if (window.electronAPI?.closeWindow) {
+    window.electronAPI.closeWindow()
+  }
+}
+
+// [Bugfix] 监听重试完成，刷新消息状态
+const retryUnsub = eventApi.on('on:retry-completed', async (info) => {
+  if (info.deviceIp === chatStore.currentIp && info.retried > 0) {
+    await chatStore.refresh()
+  }
+})
+onUnmounted(() => { if (retryUnsub) retryUnsub() })
 </script>
 
 <style scoped>
@@ -172,6 +193,25 @@ async function reconnect() {
 .reconnect-btn:hover { background: #3A8EE6; }
 .status-dot.connecting { background: #E6A23C; animation: pulse .8s ease-in-out infinite; }
 .status-text.offline { color: #909399 !important; }
+
+/* [Bugfix] 断联横幅 - 替代阻断页 */
+.offline-banner {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px;
+  background: #FFF7E6;
+  color: #B88230;
+  font-size: 12px;
+  border-bottom: 1px solid #F5E6BF;
+  flex-shrink: 0;
+}
+.banner-icon { font-size: 14px; }
+.banner-text { flex: 1; }
+.pending-badge {
+  background: #E6A23C; color: white;
+  padding: 2px 8px; border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+}
 /* 消息入场动画 */
 .msg-enter-active { transition: all .3s ease; }
 .msg-enter-from { opacity: 0; transform: translateY(10px); }

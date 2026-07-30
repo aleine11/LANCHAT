@@ -68,6 +68,7 @@ function initTables() {
       image_height    INTEGER NULL,
       is_read         INTEGER NOT NULL DEFAULT 0,
       message_id      TEXT    NOT NULL,
+      status          TEXT    NOT NULL DEFAULT 'sent',  -- [Bugfix] sent=已发送, pending=发送中, failed=发送失败, received=已收到
       created_at      TEXT    NOT NULL
     );
 
@@ -86,6 +87,17 @@ function initTables() {
     -- 唯一索引：防止网络重传导致同一条消息存两遍
     CREATE UNIQUE INDEX IF NOT EXISTS uq_chat_message_id
       ON chat_history(message_id);
+
+    -- [Bugfix] 给已存在的旧表补充 status 字段（迁移用）
+    -- 旧表没有 status 列时 ADD COLUMN
+  `)
+
+  // 兼容旧数据库：检查 status 字段是否存在
+  const columns = database.prepare("PRAGMA table_info(chat_history)").all()
+  if (!columns.find(c => c.name === 'status')) {
+    console.log('[数据库] 迁移：添加 status 字段到 chat_history')
+    database.exec("ALTER TABLE chat_history ADD COLUMN status TEXT NOT NULL DEFAULT 'sent'")
+  }
   `)
 
   // ===== 表2：配置表 =====

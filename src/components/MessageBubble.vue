@@ -16,23 +16,77 @@
         class="bubble bubble-image"
         @click="$emit('preview', msg)"
       >
-        <div class="img-placeholder">
-          <span class="img-icon">🖼️</span>
-          <span class="img-label">点击查看大图</span>
+        <img
+          v-if="imageSrc"
+          :src="imageSrc"
+          class="img-real"
+          @error="imgError = true"
+          alt="图片"
+        />
+        <div v-else-if="imgError" class="img-failed">
+          <span>🖼️</span>
+          <span class="fail-text">图片加载失败</span>
+        </div>
+        <div v-else class="img-loading">
+          <span>🖼️</span>
+          <span>加载中...</span>
         </div>
       </div>
-      <!-- 时间 -->
-      <div class="msg-time">{{ formatTime(msg.createdAt) }}</div>
+      <!-- 时间 + 状态 -->
+      <div class="msg-meta">
+        <span class="msg-time">{{ formatTime(msg.createdAt) }}</span>
+        <span v-if="msg.isSelf && msg.status === 'pending'" class="msg-status pending">发送中</span>
+        <span v-else-if="msg.isSelf && msg.status === 'failed'" class="msg-status failed">已失败</span>
+        <span v-else-if="msg.isSelf && msg.status === 'sent'" class="msg-status sent">已发送</span>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-defineProps({
+import { ref, computed, onMounted, watch } from 'vue'
+import { imageApi } from '@/utils/ipc'
+
+const props = defineProps({
   msg: { type: Object, required: true },
   fromName: { type: String, default: '' }
 })
 defineEmits(['preview'])
+
+const imageSrc = ref('')
+const imgError = ref(false)
+
+// 异步获取图片完整路径并转换为 file:// 协议
+async function loadImage() {
+  imgError.value = false
+  if (props.msg.contentType !== 'image') return
+
+  // 优先用 imagePath（数据库存的相对路径）
+  const path = props.msg.imagePath || props.msg.content
+  if (!path) return
+
+  // 如果已经是 data URL，直接用
+  if (path.startsWith('data:')) {
+    imageSrc.value = path
+    return
+  }
+
+  // 通过 IPC 拼接完整路径
+  try {
+    const res = await imageApi.getPath(path)
+    if (res.code === 200 && res.data.fullPath) {
+      // Windows 路径需要转 file:// 协议 + 反斜杠转正斜杠
+      imageSrc.value = 'file:///' + res.data.fullPath.replace(/\\/g, '/')
+    } else {
+      imgError.value = true
+    }
+  } catch (e) {
+    imgError.value = true
+  }
+}
+
+onMounted(loadImage)
+watch(() => props.msg.imagePath, loadImage)
 
 function formatTime(timeStr) {
   if (!timeStr) return ''
@@ -77,23 +131,35 @@ function formatTime(timeStr) {
   border-top-right-radius: 2px;
 }
 .bubble-image {
-  padding: 4px; cursor: pointer; transition: transform .2s;
-  max-width: 220px;
+  padding: 4px; cursor: pointer;
+  max-width: 220px; transition: transform .2s;
+  background: transparent !important;
+  box-shadow: none;
 }
 .bubble-image:hover { transform: scale(1.02); }
-.img-placeholder {
+.img-real {
+  width: 200px; max-height: 200px;
+  object-fit: cover; border-radius: 6px;
+  display: block;
+}
+.img-loading, .img-failed {
   width: 200px; height: 140px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  border-radius: 8px;
+  background: linear-gradient(135deg, #d0d5dd, #b0b5bd);
+  border-radius: 6px;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  gap: 6px;
+  gap: 6px; color: #fff; font-size: 12px;
 }
-.img-icon { font-size: 36px; }
-.img-label { font-size: 12px; color: rgba(255,255,255,.7); }
-.msg-time {
+.img-failed { background: linear-gradient(135deg, #F56C6C, #c45656); }
+.msg-meta {
+  display: flex; align-items: center; gap: 6px;
   font-size: 11px; color: #C0C4CC;
-  margin-top: 2px;
-  padding: 0 4px;
+  margin-top: 2px; padding: 0 4px;
+  justify-content: flex-end;
 }
+.msg-row.other .msg-meta { justify-content: flex-start; }
+.msg-status { font-size: 10px; padding: 1px 6px; border-radius: 4px; }
+.msg-status.pending { color: #E6A23C; }
+.msg-status.failed { color: #F56C6C; }
+.msg-status.sent { color: #67C23A; }
 </style>
