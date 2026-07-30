@@ -93,9 +93,19 @@ function getPendingMessages(deviceIp) {
  * @param {number} pageSize  - 每页数量
  * @returns {{ list: Array, total: number, hasMore: boolean }}
  */
+/**
+ * [Bugfix] 分页查询聊天记录
+ * page=1 加载最新的 pageSize 条（按时间倒序）
+ * page=2 加载第二新的 pageSize 条
+ * 等等...
+ *
+ * @param {string} deviceIp  - 对方IP
+ * @param {number} page      - 页码（从1开始，1=最新）
+ * @param {number} pageSize  - 每页数量
+ * @returns {{ list: Array, total: number, hasMore: boolean }}
+ */
 function getChatHistory(deviceIp, page = 1, pageSize = 20) {
   const db = getDatabase()
-  const offset = (page - 1) * pageSize
 
   // 查总数
   const countStmt = db.prepare(
@@ -103,23 +113,30 @@ function getChatHistory(deviceIp, page = 1, pageSize = 20) {
   )
   const { total } = countStmt.get(deviceIp)
 
-  // 查记录（按时间倒序，最新的在最后）
+  // [Bugfix] 按时间倒序查询，最新的在 offset=0
+  // 计算实际 offset：page=1 取最后 N 条，page=2 取倒数第 2N 条，依此类推
+  const totalPages = Math.ceil(total / pageSize)
+  const fromEnd = totalPages - page + 1  // 从后往前数第几页
+  const offset = Math.max(0, (fromEnd - 1) * pageSize)
+
   const listStmt = db.prepare(`
     SELECT id, device_ip, device_name, content, content_type, is_self,
            thumbnail_path, image_path, image_size, image_width, image_height,
            is_read, message_id, status, created_at
     FROM chat_history
     WHERE device_ip = ?
-    ORDER BY created_at ASC
+    ORDER BY created_at DESC
     LIMIT ? OFFSET ?
   `)
 
   const list = listStmt.all(deviceIp, pageSize, offset)
+  // 转为正序返回（旧的在前，新的在后）
+  list.reverse()
 
   return {
     list,
     total,
-    hasMore: offset + pageSize < total
+    hasMore: page < totalPages
   }
 }
 

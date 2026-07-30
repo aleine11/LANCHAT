@@ -61,12 +61,16 @@ export const useChatStore = defineStore('chat', {
 
     /**
      * 加载更多历史
+     * [Bugfix] page=1 加载最新消息
      */
     async loadMore() {
       if (!this.currentIp || !this.hasMore || this.loading) return
       this.loading = true
-      const page = Math.floor(this.messages.length / 20) + 1
-      const res = await chatApi.getHistory(this.currentIp, page, 20)
+      // 第一次加载：page=1 拿最新的 50 条
+      // 后续加载：page=2 拿倒数第二新的，依此类推
+      const page = this.messages.length === 0 ? 1 : Math.floor(this.messages.length / 20) + 1
+      const pageSize = page === 1 ? 50 : 20
+      const res = await chatApi.getHistory(this.currentIp, page, pageSize)
       if (res.code === 200) {
         const newMsgs = res.data.list.map(m => ({
           id: m.id,
@@ -80,7 +84,13 @@ export const useChatStore = defineStore('chat', {
           messageId: m.message_id,
           createdAt: m.created_at
         }))
-        this.messages = [...newMsgs, ...this.messages]
+        if (page === 1) {
+          // 首次：直接设置
+          this.messages = newMsgs
+        } else {
+          // 加载更早的：在前面拼接
+          this.messages = [...newMsgs, ...this.messages]
+        }
         this.hasMore = res.data.hasMore
       }
       this.loading = false

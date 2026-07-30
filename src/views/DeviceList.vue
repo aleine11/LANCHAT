@@ -5,7 +5,12 @@
   -->
   <div class="device-page">
     <!-- 自定义标题栏 -->
-    <TitleBar @openSettings="showSettings = true" />
+    <TitleBar @refresh="refreshAll">
+      <template #left>
+        <span class="titlebar-logo">💬</span>
+        <span class="titlebar-title">LanChat</span>
+      </template>
+    </TitleBar>
 
     <!-- 内容区 -->
     <div class="content">
@@ -164,6 +169,12 @@ async function refreshDevices() {
   loadRecentContacts()
   scanning.value = false
   setTimeout(() => { refreshing.value = false }, 800)
+}
+
+// 标题栏的全局刷新
+async function refreshAll() {
+  await refreshDevices()
+  playNotificationSound()
 }
 
 // 时间格式化

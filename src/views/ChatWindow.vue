@@ -1,24 +1,18 @@
 <template>
   <!-- 聊天窗口（微信风格） -->
   <div class="chat-page">
-    <!-- 标题栏 -->
-    <div class="chat-header">
-      <button class="back-btn" @click="goBack">←</button>
-      <div class="chat-info">
+    <!-- [Bugfix] 统一标题栏：和主页一样可拖拽 -->
+    <TitleBar @refresh="reconnect">
+      <template #left>
+        <button class="back-btn" @click="goBack">←</button>
         <span class="chat-name">{{ chatStore.currentName || '对方' }}</span>
         <span :class="['status-dot', connected ? 'online' : (connecting ? 'connecting' : 'offline')]"></span>
         <span class="status-text" :class="!connected ? 'offline' : ''">
           {{ connected ? '在线' : (connecting ? '连接中...' : '未连接') }}
         </span>
         <span class="chat-ip">· {{ chatStore.currentIp }}</span>
-      </div>
-      <div class="header-actions">
-        <button class="header-btn" @click="reconnect" :title="connected ? '重连' : '重新连接'">🔄</button>
-        <button class="header-btn" title="全屏" @click="toggleFullscreen">{{ isFullscreen ? '❐' : '▢' }}</button>
-        <button class="header-btn" title="最小化" @click="minWindow">─</button>
-        <button class="header-btn close" title="关闭" @click="closeWindow">✕</button>
-      </div>
-    </div>
+      </template>
+    </TitleBar>
 
     <!-- [Bugfix] 断联提示横幅 - 仍可聊天 -->
     <div v-if="!connected" class="offline-banner">
@@ -65,6 +59,7 @@ import { eventApi } from '@/utils/ipc'
 import MessageBubble from '@/components/MessageBubble.vue'
 import ChatInput from '@/components/ChatInput.vue'
 import ImagePreview from '@/components/ImagePreview.vue'
+import TitleBar from '@/components/TitleBar.vue'
 
 const router = useRouter()
 const chatStore = useChatStore()
@@ -123,19 +118,9 @@ async function reconnect() {
   await deviceStore.connect(chatStore.currentIp, 5679)
 }
 
-function minWindow() {
-  window.electronAPI?.minimizeWindow()
-}
+// [Bugfix] 标题栏统一后，minWindow/closeWindow 由 TitleBar 组件处理
+// 移除冗余函数
 
-const isFullscreen = ref(false)
-function toggleFullscreen() {
-  isFullscreen.value = !isFullscreen.value
-  document.body.classList.toggle('chat-fullscreen', isFullscreen.value)
-}
-
-function closeWindow() {
-  window.electronAPI?.closeWindow()
-}
 
 // [Bugfix] 监听重试完成，刷新消息状态
 const retryUnsub = eventApi.on('on:retry-completed', async (info) => {
@@ -152,43 +137,31 @@ onUnmounted(() => { if (retryUnsub) retryUnsub() })
   display: flex; flex-direction: column;
   background: #F0F3F7;
 }
-/* 标题栏 */
-.chat-header {
-  height: 48px; background: white;
-  display: flex; align-items: center;
-  padding: 0 16px;
-  border-bottom: 1px solid #EBEEF5;
-  flex-shrink: 0; gap: 10px;
-}
+/* [Bugfix] 聊天窗口标题栏内嵌样式 - 蓝色背景白色文字 */
+:deep(.titlebar) { padding-left: 0; }
 .back-btn {
-  width: 32px; height: 32px; border-radius: 8px;
-  border: none; background: none;
+  width: 32px; height: 32px; border-radius: 6px;
+  border: none; background: rgba(255,255,255,.15);
   font-size: 18px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  color: #303133; transition: .15s;
+  color: white; transition: .15s;
 }
-.back-btn:hover { background: #F0F3F7; }
-.chat-info {
-  flex: 1; display: flex; align-items: center; gap: 6px;
+.back-btn:hover { background: rgba(255,255,255,.3); }
+.chat-name {
+  font-size: 15px; font-weight: 600;
+  color: white; margin-left: 8px;
 }
-.chat-name { font-size: 15px; font-weight: 600; }
-.status-dot { width: 8px; height: 8px; border-radius: 50%; }
-.status-dot.online { background: #67C23A; animation: pulse 2s ease-in-out infinite; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; margin-left: 6px; }
+.status-dot.online { background: #67C23A; animation: pulse 2s ease-in-out infinite; box-shadow: 0 0 4px rgba(255,255,255,.5); }
 .status-dot.offline { background: #C0C4CC; }
+.status-dot.connecting { background: #E6A23C; animation: pulse .8s ease-in-out infinite; }
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: .6; transform: scale(1.3); }
 }
-.status-text { font-size: 12px; color: #67C23A; }
-.chat-ip { font-size: 12px; color: #C0C4CC; }
-.header-actions { display: flex; gap: 4px; }
-.header-btn {
-  width: 30px; height: 30px; border: none; background: none;
-  font-size: 14px; cursor: pointer; border-radius: 6px;
-  color: #606266; transition: .15s;
-}
-.header-btn:hover { background: #F0F3F7; }
-.header-btn.close:hover { background: #E81123; color: white; }
+.status-text { font-size: 12px; color: rgba(255,255,255,.9); }
+.status-text.offline { color: rgba(255,255,255,.6) !important; }
+.chat-ip { font-size: 12px; color: rgba(255,255,255,.6); margin-left: 4px; }
 /* 消息区 */
 .messages-area {
   flex: 1; overflow-y: auto;
@@ -210,14 +183,6 @@ onUnmounted(() => { if (retryUnsub) retryUnsub() })
 .reconnect-btn:hover { background: #3A8EE6; }
 .status-dot.connecting { background: #E6A23C; animation: pulse .8s ease-in-out infinite; }
 .status-text.offline { color: #909399 !important; }
-
-/* [Bugfix] 全屏模式 */
-:global(.chat-fullscreen) .chat-page,
-.chat-fullscreen .chat-page {
-  position: fixed; inset: 0;
-  z-index: 9999;
-  background: white;
-}
 
 /* [Bugfix] 断联横幅 - 替代阻断页 */
 .offline-banner {

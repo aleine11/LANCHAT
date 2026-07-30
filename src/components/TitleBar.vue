@@ -1,24 +1,26 @@
 <template>
   <!--
-    自定义标题栏
-    无边框窗口需要自己画标题栏，同时支持窗口拖拽
+    统一标题栏组件
+    主页和聊天窗口共用，支持拖拽
+    [Bugfix] 按钮顺序：刷新 / 最小化 / 最大化 / 关闭
   -->
   <div class="titlebar">
     <div class="titlebar-left">
-      <span class="titlebar-logo">💬</span>
-      <span class="titlebar-title">LanChat</span>
+      <slot name="left"></slot>
     </div>
     <div class="titlebar-right">
-      <button class="titlebar-btn" title="设置" @click="$emit('openSettings')">⚙</button>
-      <button class="titlebar-btn" title="最小化" @click="minimize">─</button>
-      <button class="titlebar-btn" title="最大化" @click="maximize">□</button>
-      <button class="titlebar-btn close" title="关闭" @click="close">✕</button>
+      <slot name="right">
+        <button class="titlebar-btn" title="刷新设备" @click="$emit('refresh')">🔄</button>
+        <button class="titlebar-btn" title="最小化" @click="minimize">─</button>
+        <button class="titlebar-btn" title="最大化" @click="maximize">□</button>
+        <button class="titlebar-btn close" title="关闭" @click="close">✕</button>
+      </slot>
     </div>
   </div>
 </template>
 
 <script setup>
-defineEmits(['openSettings'])
+defineEmits(['refresh'])
 
 function minimize() { window.electronAPI?.minimizeWindow() }
 function maximize() { window.electronAPI?.maximizeWindow() }
@@ -33,7 +35,7 @@ function close() { window.electronAPI?.closeWindow() }
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  -webkit-app-region: drag;
+  -webkit-app-region: drag;  /* [Bugfix] 整个标题栏可拖拽 */
   flex-shrink: 0;
 }
 .titlebar-left {
@@ -44,16 +46,9 @@ function close() { window.electronAPI?.closeWindow() }
   font-size: 14px;
   font-weight: 600;
 }
-.titlebar-logo {
-  width: 20px; height: 20px;
-  background: rgba(255,255,255,.25);
-  border-radius: 4px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px;
-}
 .titlebar-right {
   display: flex; gap: 4px;
-  -webkit-app-region: no-drag;
+  -webkit-app-region: no-drag;  /* 按钮不能拖拽 */
 }
 .titlebar-btn {
   width: 28px; height: 28px;

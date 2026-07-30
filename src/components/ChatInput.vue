@@ -1,13 +1,13 @@
 <template>
   <!-- 聊天输入栏：文字+图片+拖拽 -->
   <div class="input-area" @dragover.prevent @drop.prevent="onDrop">
+    <!-- [Bugfix] 手柄在最顶部 - 在图片按钮上方 -->
+    <div class="resize-handle" @mousedown="startDrag">
+      <div class="handle-bar"></div>
+    </div>
     <div class="input-toolbar">
       <button class="toolbar-btn" title="选择图片" @click="selectImage">🖼️</button>
       <span class="hint-text">回车发送 · Shift+回车换行 · Ctrl+V粘贴图片 · 拖拽图片到此处</span>
-    </div>
-    <!-- [Bugfix] 拖动这个手柄可向上拉高输入框 -->
-    <div class="resize-handle" @mousedown="startDrag">
-      <div class="handle-bar"></div>
     </div>
     <div class="input-row">
       <textarea
