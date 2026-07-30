@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LanChat - 产品原型说明</title>
+<style>
+  :root {
+    --primary: #409EFF;
+    --primary-light: #66B1FF;
+    --primary-dark: #3A8EE6;
+    --primary-bg: #ECF5FF;
+    --bg-page: #F5F7FA;
+    --bg-card: #FFFFFF;
+    --text-primary: #303133;
+    --text-regular: #606266;
+    --text-secondary: #909399;
+    --border-color: #EBEEF5;
+    --border-radius: 12px;
+    --box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    --font-family: -apple-system, 'Microsoft YaHei', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--font-family);
+    background: var(--bg-page);
+    color: var(--text-primary);
+    line-height: 1.6;
+    padding: 40px 20px;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  .header {
+    text-align: center;
+    padding: 40px 0;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    border-radius: var(--border-radius);
+    color: white;
+    margin-bottom: 32px;
+  }
+  .header h1 { font-size: 36px; margin-bottom: 8px; }
+  .header p { font-size: 16px; opacity: 0.9; }
+  .header .logo { font-size: 48px; margin-bottom: 12px; }
+  .card {
+    background: var(--bg-card);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 28px;
+    margin-bottom: 20px;
+  }
+  .card h3 {
+    font-size: 18px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .proto-links { display: flex; flex-wrap: wrap; gap: 12px; }
+  .proto-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: var(--primary-bg);
+    color: var(--primary);
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+  }
+  .proto-link:hover { background: var(--primary); color: white; border-color: var(--primary); }
+  .feature-tag {
+    display: inline-block;
+    padding: 4px 12px;
+    background: var(--primary-bg);
+    color: var(--primary);
+    border-radius: 20px;
+    font-size: 13px;
+    margin: 4px 4px 4px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+  }
+  th, td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 14px;
+  }
+  th { background: var(--bg-page); font-weight: 600; color: var(--text-regular); }
+  .status-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .status-soon { background: #FFF7E6; color: #E6A23C; }
+  .status-done { background: #F0F9EB; color: #67C23A; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo">💬</div>
+    <h1>LanChat 产品原型</h1>
+    <p>局域网即时聊天工具 · 科技蓝 · LocalSend卡片 + 微信气泡风格</p>
+  </div>
+
+  <div class="card">
+    <h3>📋 原型页面清单</h3>
+    <div class="proto-links">
+      <a href="设备列表-主界面.html" class="proto-link">📡 设备列表 - 主界面</a>
+      <a href="聊天窗口.html" class="proto-link">💬 聊天窗口</a>
+      <a href="设置弹窗.html" class="proto-link">⚙ 设置弹窗</a>
+      <a href="图片预览.html" class="proto-link">🖼️ 图片预览</a>
+      <a href="空状态-无设备.html" class="proto-link">📭 空状态展示</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🎯 功能特性</h3>
+    <div>
+      <span class="feature-tag">🔍 设备自动发现</span>
+      <span class="feature-tag">📡 UDP广播</span>
+      <span class="feature-tag">🔗 TCP直连聊天</span>
+      <span class="feature-tag">💬 文字消息</span>
+      <span class="feature-tag">🖼️ 图片发送</span>
+      <span class="feature-tag">📋 Ctrl+V粘贴图片</span>
+      <span class="feature-tag">🖱️ 拖拽发图</span>
+      <span class="feature-tag">🔍 图片预览</span>
+      <span class="feature-tag">💾 本地SQLite存储</span>
+      <span class="feature-tag">📜 聊天记录</span>
+      <span class="feature-tag">🟢 在线状态</span>
+      <span class="feature-tag">🎨 CSS变量主题</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📊 交互要点</h3>
+    <table>
+      <tr><th>操作</th><th>预期行为</th></tr>
+      <tr><td>点击设备卡片</td><td>跳转到聊天窗口页面</td></tr>
+      <tr><td>聊天窗口点 ← 返回</td><td>回到设备列表页</td></tr>
+      <tr><td>点击图片缩略图</td><td>弹出图片大图预览</td></tr>
+      <tr><td>点击设置 ⚙ 图标</td><td>弹出设置弹窗</td></tr>
+      <tr><td>聊天输入框按回车</td><td>发送文字消息</td></tr>
+      <tr><td>聊天输入框 Shift+回车</td><td>换行</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>📌 技术栈</h3>
+    <table>
+      <tr><th>层级</th><th>技术</th><th>说明</th></tr>
+      <tr><td>桌面框架</td><td>Electron 28+</td><td>Web→桌面应用</td></tr>
+      <tr><td>前端UI</td><td>Vue 3 + Element Plus</td><td>组件化开发</td></tr>
+      <tr><td>构建工具</td><td>Vite 5</td><td>快速开发打包</td></tr>
+      <tr><td>设备发现</td><td>Node.js dgram (UDP)</td><td>局域网广播</td></tr>
+      <tr><td>点对点通信</td><td>Node.js net (TCP)</td><td>消息传输</td></tr>
+      <tr><td>本地存储</td><td>SQLite (better-sqlite3)</td><td>聊天记录</td></tr>
+    </table>
+  </div>
+</div>
+</body>
+</html>
