@@ -31,3 +31,6 @@ docs/知识点笔记.md
 
 # Electron
 electron/dist/
+"release/"  
+"*.asar"  
+"*.asar.unpacked"  
