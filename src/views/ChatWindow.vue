@@ -1,8 +1,8 @@
 <template>
   <!-- 聊天窗口（微信风格） -->
   <div class="chat-page">
-    <!-- [Bugfix] 统一标题栏：和主页一样可拖拽 -->
-    <TitleBar @refresh="reconnect">
+    <!-- [Bugfix] 白色标题栏，可拖拽 -->
+    <TitleBar color="white" @refresh="reconnect">
       <template #left>
         <button class="back-btn" @click="goBack">←</button>
         <span class="chat-name">{{ chatStore.currentName || '对方' }}</span>
@@ -137,19 +137,18 @@ onUnmounted(() => { if (retryUnsub) retryUnsub() })
   display: flex; flex-direction: column;
   background: #F0F3F7;
 }
-/* [Bugfix] 聊天窗口标题栏内嵌样式 - 蓝色背景白色文字 */
-:deep(.titlebar) { padding-left: 0; }
+/* [Bugfix] 聊天窗口标题栏样式 - 白色背景深色文字 */
 .back-btn {
   width: 32px; height: 32px; border-radius: 6px;
-  border: none; background: rgba(255,255,255,.15);
+  border: none; background: none;
   font-size: 18px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  color: white; transition: .15s;
+  color: #303133; transition: .15s;
 }
-.back-btn:hover { background: rgba(255,255,255,.3); }
+.back-btn:hover { background: #F0F3F7; }
 .chat-name {
   font-size: 15px; font-weight: 600;
-  color: white; margin-left: 8px;
+  color: #303133; margin-left: 8px;
 }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; margin-left: 6px; }
 .status-dot.online { background: #67C23A; animation: pulse 2s ease-in-out infinite; box-shadow: 0 0 4px rgba(255,255,255,.5); }
@@ -159,9 +158,9 @@ onUnmounted(() => { if (retryUnsub) retryUnsub() })
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: .6; transform: scale(1.3); }
 }
-.status-text { font-size: 12px; color: rgba(255,255,255,.9); }
-.status-text.offline { color: rgba(255,255,255,.6) !important; }
-.chat-ip { font-size: 12px; color: rgba(255,255,255,.6); margin-left: 4px; }
+.status-text { font-size: 12px; color: #67C23A; }
+.status-text.offline { color: #909399 !important; }
+.chat-ip { font-size: 12px; color: #C0C4CC; margin-left: 4px; }
 /* 消息区 */
 .messages-area {
   flex: 1; overflow-y: auto;
