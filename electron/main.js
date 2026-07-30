@@ -8,6 +8,9 @@
 const { app, BrowserWindow, ipcMain } = require('electron')
 const { join } = require('path')
 
+// 引入数据库模块（M2 新增）
+const { initTables, closeDatabase } = require('./db/database')
+
 // 判断是否开发模式
 const isDev = !app.isPackaged
 
@@ -64,6 +67,9 @@ function createWindow() {
 
 // 当 Electron 初始化完成后创建窗口
 app.whenReady().then(() => {
+  // [M2] 初始化数据库（建表）
+  initTables()
+
   createWindow()
 
   // macOS：点击 Dock 图标重新创建窗口（Windows 不需要，但保留兼容）
@@ -79,6 +85,11 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+// [M2] 应用退出前关闭数据库连接
+app.on('before-quit', () => {
+  closeDatabase()
 })
 
 // ===== 窗口控制 IPC =====
