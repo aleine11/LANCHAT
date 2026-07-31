@@ -34,3 +34,4 @@ electron/dist/
 "release/"  
 "*.asar"  
 "*.asar.unpacked"  
+"release2/"  
