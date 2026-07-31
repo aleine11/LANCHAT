@@ -5,10 +5,9 @@ node_modules/
 dist/
 dist-electron/
 
-# Release artifacts (keep exe installers, ignore unpacked)
-release/win-unpacked/
-release/*.blockmap
-release/builder-*.yml
+# Release artifacts
+release/
+release*/
 
 # IDE
 .idea/
@@ -34,5 +33,8 @@ electron/dist/
 
 # Product prototypes (not for repo)
 产品原型/
+
+# Local notes (not for repo)
+docs/知识点笔记.md
 
 # Auto-generated temp files
