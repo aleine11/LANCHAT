@@ -1,0 +1,6 @@
+# 让 Linguist 正确识别 .vue 文件的语言
+*.vue linguist-language=Vue
+
+# 排除统计的目录
+产品原型/ linguist-vendored
+docs/ linguist-documentation
