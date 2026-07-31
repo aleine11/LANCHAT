@@ -2,7 +2,7 @@
   <!-- 聊天窗口（微信风格） -->
   <div class="chat-page">
     <!-- [Bugfix] 白色标题栏，可拖拽 -->
-    <TitleBar color="white" @refresh="reconnect">
+    <TitleBar color="white">
       <template #left>
         <button class="back-btn" @click="goBack">←</button>
         <span class="chat-name">{{ chatStore.currentName || '对方' }}</span>
@@ -10,6 +10,12 @@
         <span class="status-text" :class="!connected ? 'offline' : ''">
           {{ connected ? '在线' : (connecting ? '连接中...' : '未连接') }}
         </span>
+      </template>
+      <!-- [修改] 覆盖默认的 #right slot，移除"设置"按钮（聊天窗口不需要，重复了） -->
+      <template #right>
+        <button class="titlebar-btn" title="最小化" @click="minimizeWindow">─</button>
+        <button class="titlebar-btn" title="最大化" @click="maximizeWindow">□</button>
+        <button class="titlebar-btn close" title="关闭" @click="closeWindow">✕</button>
       </template>
     </TitleBar>
 
@@ -112,6 +118,11 @@ function goBack() {
   router.push('/')
 }
 
+// [修改] 窗口控制 - 因为覆盖了 #right slot，需要自己实现这些函数
+function minimizeWindow() { window.electronAPI?.minimizeWindow() }
+function maximizeWindow() { window.electronAPI?.maximizeWindow() }
+function closeWindow() { window.electronAPI?.closeWindow() }
+
 async function onSend(content) {
   await chatStore.sendMessage(content)
 }
@@ -128,14 +139,6 @@ async function onDelete(msg) {
   await chatStore.deleteMessage(msg.messageId)
 }
 
-async function reconnect() {
-  if (!chatStore.currentIp) return
-  await deviceStore.connect(chatStore.currentIp, 5679)
-}
-
-// [Bugfix] 标题栏统一后，minWindow/closeWindow 由 TitleBar 组件处理
-// 移除冗余函数
-
 
 // [Bugfix] 监听重试完成，刷新消息状态
 const retryUnsub = eventApi.on('on:retry-completed', async (info) => {
@@ -150,20 +153,20 @@ onUnmounted(() => { if (retryUnsub) retryUnsub() })
 .chat-page {
   height: 100%;
   display: flex; flex-direction: column;
-  background: #F0F3F7;
+  background: var(--bg-page);
 }
-/* [Bugfix] 聊天窗口标题栏样式 - 白色背景深色文字 */
+/* 聊天窗口标题栏样式 */
 .back-btn {
   width: 32px; height: 32px; border-radius: 6px;
   border: none; background: none;
   font-size: 18px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  color: #303133; transition: .15s;
+  color: var(--text-primary); transition: .15s;
 }
-.back-btn:hover { background: #F0F3F7; }
+.back-btn:hover { background: var(--bg-hover); }
 .chat-name {
   font-size: 15px; font-weight: 600;
-  color: #303133; margin-left: 8px;
+  color: var(--text-primary); margin-left: 8px;
 }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; margin-left: 6px; }
 .status-dot.online { background: #67C23A; animation: pulse 2s ease-in-out infinite; box-shadow: 0 0 4px rgba(255,255,255,.5); }
@@ -175,6 +178,19 @@ onUnmounted(() => { if (retryUnsub) retryUnsub() })
 }
 .status-text { font-size: 12px; color: #67C23A; }
 .status-text.offline { color: #909399 !important; }
+/* [修复] 复制 TitleBar 的按钮样式到本地，否则 .titlebar-btn 样式不生效（scoped 隔离） */
+.titlebar-btn {
+  width: 28px; height: 28px;
+  border: none; background: none;
+  font-size: 14px; cursor: pointer;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+  color: var(--text-regular);
+}
+.titlebar-btn:hover { background: var(--bg-hover); }
+.titlebar-btn.close:hover { background: #E81123; color: white !important; }
+
 /* 消息区 */
 .messages-area {
   flex: 1; overflow-y: auto;
@@ -182,7 +198,7 @@ onUnmounted(() => { if (retryUnsub) retryUnsub() })
 }
 .empty-chat {
   text-align: center; padding: 80px 40px;
-  color: #909399; font-size: 14px;
+  color: var(--text-secondary); font-size: 14px;
 }
 .empty-icon { font-size: 48px; margin-bottom: 12px; }
 .reconnect-btn {
@@ -197,14 +213,14 @@ onUnmounted(() => { if (retryUnsub) retryUnsub() })
 .status-dot.connecting { background: #E6A23C; animation: pulse .8s ease-in-out infinite; }
 .status-text.offline { color: #909399 !important; }
 
-/* [Bugfix] 断联横幅 - 替代阻断页 */
+/* 断联横幅 */
 .offline-banner {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 16px;
-  background: #FFF7E6;
-  color: #B88230;
+  background: var(--banner-bg);
+  color: var(--banner-text);
   font-size: 12px;
-  border-bottom: 1px solid #F5E6BF;
+  border-bottom: 1px solid var(--banner-border);
   flex-shrink: 0;
 }
 .banner-icon { font-size: 14px; }
@@ -219,7 +235,7 @@ onUnmounted(() => { if (retryUnsub) retryUnsub() })
 .msg-enter-active { transition: all .3s ease; }
 .msg-enter-from { opacity: 0; transform: translateY(10px); }
 /* 滚动条 */
-.messages-area::-webkit-scrollbar { width: 5px; }
+.messages-area::-webkit-scrollbar { width: 10px; }
 .messages-area::-webkit-scrollbar-track { background: transparent; }
-.messages-area::-webkit-scrollbar-thumb { background: #d0d5dd; border-radius: 3px; }
+.messages-area::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 5px; }
 </style>

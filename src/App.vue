@@ -6,7 +6,7 @@
 import { onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useDeviceStore } from '@/stores/device'
-import { eventApi } from '@/utils/ipc'
+import { eventApi, configApi } from '@/utils/ipc'
 import { playNotificationSound } from '@/utils/notification'
 
 const userStore = useUserStore()
@@ -16,8 +16,18 @@ onMounted(async () => {
   await userStore.load()
   deviceStore.init()
 
-  // [Bugfix] 全局提示音：不管当前在主页还是聊天窗口，收到消息都播放
-  // 之前只在 DeviceList.vue 订阅，导致进入聊天窗口后收消息没声音
+  // 初始化主题（从数据库读取，默认浅色）
+  try {
+    const res = await configApi.getAll()
+    if (res.code === 200 && res.data) {
+      const theme = res.data.theme || 'light'
+      document.documentElement.setAttribute('data-theme', theme)
+    }
+  } catch (e) {
+    // 默认浅色模式
+  }
+
+  // 全局提示音：不管当前在主页还是聊天窗口，收到消息都播放
   eventApi.on('on:message-received', () => {
     playNotificationSound()
   })

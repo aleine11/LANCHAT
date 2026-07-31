@@ -5,37 +5,73 @@ productName: LanChat
 copyright: Copyright © 2026 LanChat
 
 directories:
-  output: release2
+  output: release
   buildResources: build
 
 win:
   icon: build/icon.ico
   target:
+    # 便携版：双击即可运行，无需安装
+    - target: portable
+      arch: [x64]
+    # 安装包：标准 Windows 安装程序
     - target: nsis
       arch: [x64]
 
-# NSIS 安装包配置 — 用户可选择安装路径
+# NSIS 安装包也保留（体积更小，含卸载）
 nsis:
-  oneClick: false                    # 非一键安装，显示安装向导
-  perMachine: false                  # 单用户安装（不需要管理员权限）
-  allowToChangeInstallationDirectory: true   # ✅ 允许用户选择安装目录
-  createDesktopShortcut: true        # 创建桌面快捷方式
-  createStartMenuShortcut: true      # 创建开始菜单快捷方式
-  shortcutName: LanChat              # 快捷方式名称
-  installerIcon: build/icon.ico      # 安装程序图标
-  uninstallerIcon: build/icon.ico    # 卸载程序图标
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: LanChat
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
   installerHeaderIcon: build/icon.ico
-  language: "2052"                   # 简体中文
+  language: "2052"
 
-# 跳过 electron-rebuild（native 模块已经编译好了，直接复用）
+# 跳过 electron-rebuild
 npmRebuild: false
 
-# 额外文件：把 .node 二进制从 asar 中分离（native 模块不能在 asar 里）
+# 使用 extraResources 将图标复制到外部（避免被 asar 打包）
 extraResources:
-  - from: node_modules/better-sqlite3/build
-    to: better-sqlite3/build
+  - from: build
+    to: build
+    filter:
+      - '**/*.ico'
+      - '**/*.png'
 
-# 关键修复：只解压 .node 文件，不要解压整个 better-sqlite3 目录
-# better-sqlite3 的 JS/JSON 文件必须留在 asar 里，否则 require 找不到
+# 只解压 .node 原生二进制文件
 asarUnpack:
   - '**/*.node'
+
+# 明确指定包含和排除的文件
+files:
+  # 包含必要的源代码
+  - 'dist/**/*'
+  - 'dist-electron/**/*'
+  - 'package.json'
+  - 'electron-builder.yml'
+  # 包含必要的 node_modules 运行时
+  - 'node_modules/**/*'
+  # 排除所有打包产物
+  - '!release/**/*'
+  - '!release_final/**/*'
+  - '!release_v2/**/*'
+  - '!release1.1.0/**/*'
+  # 排除编译临时文件
+  - '!node_modules/better-sqlite3/build/**/*.tlog'
+  - '!node_modules/better-sqlite3/build/**/*.obj'
+  - '!node_modules/better-sqlite3/build/**/*.vcxproj'
+  - '!node_modules/better-sqlite3/build/**/*.filters'
+  - '!node_modules/better-sqlite3/build/**/*.recipe'
+  - '!node_modules/better-sqlite3/build/**/*.lib'
+  - '!node_modules/better-sqlite3/build/**/*.exp'
+  - '!node_modules/better-sqlite3/build/**/*.sln'
+  - '!node_modules/better-sqlite3/build/**/*.user'
+  # 排除文档和 Git 相关
+  - '!docs/**/*'
+  - '!.git/**/*'
+  - '!.gitignore'
+  - '!README.md'

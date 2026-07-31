@@ -3,10 +3,12 @@ node_modules/
 
 # Build output
 dist/
-out/
-release/
-release2/
 dist-electron/
+
+# Release artifacts (keep exe installers, ignore unpacked)
+release/win-unpacked/
+release/*.blockmap
+release/builder-*.yml
 
 # IDE
 .idea/
@@ -27,21 +29,10 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Docs (personal notes, not for repo)
-docs/知识点笔记.md
-
 # Electron
 electron/dist/
-*.asar
-*.asar.unpacked
 
-# Development artifacts (prototypes, raw images, scripts, generated icons)
+# Product prototypes (not for repo)
 产品原型/
-img/
-build/
-scripts/
-src/assets/icons/
-.cached-electron/
-dist-release/
 
-# Auto-generated temp files (none currently)
+# Auto-generated temp files

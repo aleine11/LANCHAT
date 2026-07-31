@@ -3,7 +3,7 @@
 
 // 引入上面定义的 SCSS 变量和 mixin（由 vite.config.js 自动注入，不需要重复 import）
 
-// ===== CSS 自定义属性（运行时可变，后期支持动态换肤）=====
+// ===== CSS 自定义属性（运行时可变，支持暗色模式换肤）=====
 :root {
   --color-primary: #409EFF;
   --color-primary-light: #66B1FF;
@@ -18,17 +18,65 @@
   --bg-page: #F0F3F7;
   --bg-card: #FFFFFF;
   --bg-input: #F8F9FB;
+  --bg-hover: #F0F3F7;
+  --bg-toolbar: #FFFFFF;
 
   --text-primary: #303133;
   --text-regular: #606266;
   --text-secondary: #909399;
   --text-placeholder: #C0C4CC;
+  --text-inverse: #FFFFFF;
 
   --border-color: #EBEEF5;
   --border-radius: 14px;
   --box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07);
+  --box-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
 
   --font-family: -apple-system, 'Microsoft YaHei', 'PingFang SC', sans-serif;
+
+  --dialog-bg: #FFFFFF;
+  --dialog-overlay: rgba(0, 0, 0, 0.45);
+  --banner-bg: #FFF7E6;
+  --banner-text: #B88230;
+  --banner-border: #F5E6BF;
+
+  --scrollbar-thumb: #d0d5dd;
+  --scrollbar-thumb-hover: #b0b5bd;
+}
+
+// ===== 暗色模式 =====
+[data-theme="dark"] {
+  --color-primary-bg: #1a3a5c;
+
+  --bubble-self-bg: #409EFF;
+  --bubble-self-text: #FFFFFF;
+  --bubble-other-bg: #2A2A3C;
+  --bubble-other-text: #E0E0E0;
+
+  --bg-page: #1a1a2e;
+  --bg-card: #252538;
+  --bg-input: #2A2A3C;
+  --bg-hover: #2F2F45;
+  --bg-toolbar: #252538;
+
+  --text-primary: #E0E0E0;
+  --text-regular: #B0B0C0;
+  --text-secondary: #8888A0;
+  --text-placeholder: #666680;
+  --text-inverse: #FFFFFF;
+
+  --border-color: #3A3A52;
+  --box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
+  --box-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  --dialog-bg: #2A2A3C;
+  --dialog-overlay: rgba(0, 0, 0, 0.7);
+  --banner-bg: #3A3020;
+  --banner-text: #D4A040;
+  --banner-border: #5A4A28;
+
+  --scrollbar-thumb: #3A3A52;
+  --scrollbar-thumb-hover: #505070;
 }
 
 // ===== 全局重置 =====
@@ -45,9 +93,7 @@ html, body {
   font-size: 14px;
   color: var(--text-primary);
   background: var(--bg-page);
-  // 禁止用户选中文字（桌面应用常见做法）
   user-select: none;
-  // 禁止拖拽图片导致的默认行为
   -webkit-user-drag: none;
 }
 
@@ -58,17 +104,18 @@ html, body {
 
 // 自定义滚动条
 ::-webkit-scrollbar {
-  width: 5px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #d0d5dd;
-  border-radius: 3px;
+  background: var(--scrollbar-thumb);
+  border-radius: 5px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #b0b5bd;
+  background: var(--scrollbar-thumb-hover);
 }
 
 // 允许输入框和文本区域选中文字

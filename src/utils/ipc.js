@@ -51,7 +51,19 @@ export const chatApi = {
 
 export const imageApi = {
   select: () => call('invoke:select-image'),
-  getPath: (relativePath) => call('invoke:get-image-path', { relativePath })
+  getPath: (relativePath) => call('invoke:get-image-path', { relativePath }),
+  saveToPath: (relativePath, defaultName) => call('invoke:save-image-to-path', { relativePath, defaultName })
+}
+
+// ===== 配置相关 =====
+export const configApi = {
+  getAll: () => call('invoke:get-all-config'),
+  set: (key, value) => call('invoke:set-config', { key, value })
+}
+
+// ===== 对话框 =====
+export const dialogApi = {
+  selectDirectory: () => call('invoke:select-directory')
 }
 
 // ===== 事件订阅 =====

@@ -127,7 +127,7 @@ function formatTime(timeStr) {
   font-size: 18px; flex-shrink: 0;
 }
 .msg-row.other .msg-avatar { background: #E8F4FD; }
-.msg-row.self .msg-avatar { background: #ECF5FF; }
+.msg-row.self .msg-avatar { background: var(--color-primary-bg); }
 .msg-row.self .msg-avatar { order: 2; }
 .msg-content { max-width: 55%; }
 .msg-row.self .msg-content { text-align: right; }
@@ -136,14 +136,14 @@ function formatTime(timeStr) {
   padding: 10px 14px; border-radius: 12px;
   font-size: 14px; line-height: 1.5;
   word-break: break-all;
-  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  box-shadow: var(--box-shadow);
 }
 .msg-row.other .bubble {
-  background: white; color: #303133;
+  background: var(--bubble-other-bg); color: var(--bubble-other-text);
   border-top-left-radius: 2px;
 }
 .msg-row.self .bubble {
-  background: #409EFF; color: white;
+  background: var(--bubble-self-bg); color: var(--bubble-self-text);
   border-top-right-radius: 2px;
 }
 .bubble-image {
@@ -169,15 +169,15 @@ function formatTime(timeStr) {
 .img-failed { background: linear-gradient(135deg, #F56C6C, #c45656); }
 .msg-meta {
   display: flex; align-items: center; gap: 6px;
-  font-size: 11px; color: #C0C4CC;
+  font-size: 11px; color: var(--text-placeholder);
   margin-top: 2px; padding: 0 4px;
   justify-content: flex-end;
 }
 .msg-row.other .msg-meta { justify-content: flex-start; }
 .msg-status { font-size: 10px; padding: 1px 6px; border-radius: 4px; }
-.msg-status.pending { color: #909399; }
-.msg-status.waiting { color: #E6A23C; }  /* [Bugfix] 待接收用橙色，不刺眼 */
-.msg-status.sent { color: #909399; }
+.msg-status.pending { color: var(--text-secondary); }
+.msg-status.waiting { color: #E6A23C; }
+.msg-status.sent { color: var(--text-secondary); }
 .msg-action {
   background: #F56C6C; color: white;
   padding: 2px 8px; border-radius: 4px;

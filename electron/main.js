@@ -4,31 +4,45 @@
 //   1. 启动时初始化数据库、建表
 //   2. 启动 UDP 设备发现 + TCP 服务端（监听 5678/5679）
 //   3. 创建窗口，注册所有 IPC 处理器
-//   4. 网络事件（发现设备/收到消息）通过 webContents.send 推送给前端
-//   5. 前端通过 invoke: 调用主进程执行操作
+//   4. 网络事件通过 webContents.send 推送给前端
+//   5. 前端通过 invoke 调用主进程执行操作
 
 const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage } = require('electron')
-const { join } = require('path')
+const path = require('path')
 const os = require('os')
 const fs = require('fs')
 
-// ===== M2 数据库模块 =====
+// ===== 数据库模块 =====
 const { initTables, closeDatabase } = require('./db/database')
-const { getConfig, setConfig } = require('./db/configDao')
+const { getConfig, setConfig, getAllConfig } = require('./db/configDao')
 const { insertMessage, updateMessageStatus, getPendingMessages, deleteMessage,
-        getChatHistory, getAllMessages, markAsRead, getUnreadCount,
-        upsertContact, getRecentContacts, clearUnread } = require('./db/chatDao')
+  getChatHistory, getAllMessages, markAsRead, getUnreadCount,
+  upsertContact, getRecentContacts, clearUnread } = require('./db/chatDao')
 
-// ===== M3 网络模块 =====
+// ===== 网络模块 =====
 const { startDiscovery, stopDiscovery, refreshDiscovery, getDiscoveredDevices } = require('./udp/discovery')
-const { startServer, stopServer, sendMessage, isConnected, disconnectClient } = require('./tcp/server')
+const { startServer, stopServer, sendMessage, disconnectClient } = require('./tcp/server')
 const { connectToDevice } = require('./tcp/client')
 const { getLocalIP } = require('./utils/netUtil')
 const { saveImage, saveBase64Image } = require('./utils/imageUtil')
 
+// Windows 任务栏图标关联
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.lanchat.desktop')
+}
+
 const isDev = !app.isPackaged
 let mainWindow = null
 let tray = null
+
+// 获取正确的图标路径（开发/生产模式兼容）
+function getIconPath() {
+  if (isDev) {
+    return path.join(__dirname, '../src/assets/icons/icon.png')
+  } else {
+    return path.join(process.resourcesPath, 'build', 'icon.ico')
+  }
+}
 
 // ===== 窗口创建 =====
 function createWindow() {
@@ -40,13 +54,13 @@ function createWindow() {
     frame: false,
     backgroundColor: '#F0F3F7',
     webPreferences: {
-      preload: join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false,
-      webSecurity: false  // [Bugfix] 允许加载本地图片（file:// 协议）
+      webSecurity: false
     },
-    icon: join(__dirname, '../src/assets/icons/icon.png'),
+    icon: getIconPath(),
     show: false
   })
 
@@ -56,12 +70,11 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173')
     mainWindow.webContents.openDevTools({ mode: 'detach' })
   } else {
-    mainWindow.loadFile(join(__dirname, '../dist/index.html'))
+    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
 
   mainWindow.on('closed', () => { mainWindow = null })
 
-  // 关闭窗口时隐藏到托盘，不退出
   mainWindow.on('close', (e) => {
     if (!app.isQuitting) {
       e.preventDefault()
@@ -70,17 +83,18 @@ function createWindow() {
   })
 }
 
-// ===== M7 系统托盘 =====
+// ===== 系统托盘 =====
 function createTray() {
-  // 托盘图标：使用项目内置的应用图标（32x32 png）
-  const trayIconPath = join(__dirname, '../src/assets/icons/tray.png')
+  const trayIconPath = isDev
+    ? path.join(__dirname, '../src/assets/icons/tray.png')
+    : path.join(process.resourcesPath, 'build', 'icon.ico')
+
   let icon
   try {
     icon = nativeImage.createFromPath(trayIconPath)
     if (icon.isEmpty()) {
       icon = nativeImage.createEmpty()
     } else {
-      // 缩放到托盘推荐尺寸 16x16
       icon = icon.resize({ width: 16, height: 16 })
     }
   } catch (e) {
@@ -95,17 +109,16 @@ function createTray() {
     { label: '退出', click: () => { app.isQuitting = true; app.quit() } }
   ])
   tray.setContextMenu(contextMenu)
-  // 双击托盘图标显示窗口
   tray.on('double-click', () => { mainWindow?.show() })
 }
 
 // ===== 应用生命周期 =====
 app.whenReady().then(() => {
-  initTables()              // [M2] 建表
-  registerIpcHandlers()     // [M4] 注册 IPC
-  startNetworkServices()    // [M4] 启动 UDP/TCP
+  initTables()
+  registerIpcHandlers()
+  startNetworkServices()
   createWindow()
-  createTray()              // [M7] 系统托盘
+  createTray()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -118,8 +131,8 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   app.isQuitting = true
-  stopNetworkServices()    // [M4] 停止网络
-  closeDatabase()          // [M2] 关闭数据库
+  stopNetworkServices()
+  closeDatabase()
 })
 
 // ===== 窗口控制 IPC =====
@@ -129,11 +142,7 @@ ipcMain.on('window:maximize', () => {
 })
 ipcMain.on('window:close', () => mainWindow && mainWindow.close())
 
-// ====================================================
-//  [M4] 启动网络服务（UDP发现 + TCP服务端）
-// ====================================================
-
-// [Bugfix] 重试某设备所有 pending/failed 消息
+// ===== 启动网络服务 =====
 function retryPendingMessages(deviceIp) {
   const pendings = getPendingMessages(deviceIp)
   if (pendings.length === 0) return
@@ -152,7 +161,7 @@ function retryPendingMessages(deviceIp) {
       }
     } else if (msg.content_type === 'image') {
       try {
-        const fullPath = join(app.getPath('userData'), 'LanChat', msg.image_path || msg.content)
+        const fullPath = path.join(app.getPath('userData'), 'LanChat', msg.image_path || msg.content)
         if (fs.existsSync(fullPath)) {
           const buf = fs.readFileSync(fullPath)
           payload = {
@@ -180,7 +189,6 @@ function retryPendingMessages(deviceIp) {
   }
 
   console.log(`[Main] 重试完成: ${successCount}/${pendings.length} 成功`)
-  // 通知前端更新状态
   mainWindow?.webContents.send('on:retry-completed', {
     deviceIp,
     retried: pendings.length,
@@ -191,12 +199,10 @@ function retryPendingMessages(deviceIp) {
 function startNetworkServices() {
   const userName = getConfig('user_name', '用户-' + (os.hostname() || 'Unknown'))
 
-  // 启动 UDP 设备发现
   startDiscovery({
     userName,
     tcpPort: 5679,
     onDiscovered: (device) => {
-      // 通知前端
       mainWindow?.webContents.send('on:device-discovered', device)
     },
     onOffline: (device) => {
@@ -204,16 +210,13 @@ function startNetworkServices() {
     }
   })
 
-  // 启动 TCP 服务端
   startServer({
     onMessage: (msg) => {
-      // 收到 TCP 消息 → 保存到数据库 → 通知前端
       const isImage = msg.messageType === 'image'
       let content = msg.content
       let imagePath = null
       let thumbnailPath = null
 
-      // [M7] 收到图片时保存到本地
       if (isImage && msg.content) {
         try {
           const dataUrl = `data:image/jpeg;base64,${msg.content}`
@@ -238,16 +241,14 @@ function startNetworkServices() {
         messageId: msg.messageId,
         createdAt: msg.timestamp
       })
-      // 更新联系人
+
       upsertContact({
         deviceIp: msg.fromIp,
         deviceName: msg.fromName || '未知设备',
         lastMessage: isImage ? '[图片]' : msg.content,
         isFromOther: true
       })
-      // 推送给前端
-      // [Bugfix] 用本地已保存的相对路径（content/imagePath/thumbnailPath），
-      //          而不是原始 TCP base64（msg.content），否则前端当成相对路径解析导致裂图
+
       mainWindow?.webContents.send('on:message-received', {
         fromIp: msg.fromIp,
         fromName: msg.fromName,
@@ -262,7 +263,6 @@ function startNetworkServices() {
     },
     onConnection: (info) => {
       mainWindow?.webContents.send('on:connection-changed', info)
-      // [Bugfix] 连接建立时自动重试该设备的所有未发送消息
       if (info.status === 'connected' && info.deviceIp) {
         setTimeout(() => retryPendingMessages(info.deviceIp), 500)
       }
@@ -275,9 +275,7 @@ function stopNetworkServices() {
   stopServer()
 }
 
-// ====================================================
-//  [M4] 全部 IPC 处理器注册
-// ====================================================
+// ===== IPC 处理器注册 =====
 function registerIpcHandlers() {
   // ===== 用户配置 =====
   ipcMain.handle('invoke:set-user-name', async (_e, { name }) => {
@@ -321,9 +319,7 @@ function registerIpcHandlers() {
     mainWindow?.webContents.send('on:connection-changed', { deviceIp: targetIp, status: 'connecting' })
     const result = await connectToDevice(targetIp, targetPort || 5679)
     if (result.success) {
-      // 通知联系人表
       upsertContact({ deviceIp: targetIp, deviceName: '对方', lastMessage: '开始聊天' })
-      // [Bugfix] 重连后自动重试该设备的未发送消息
       const pendings = getPendingMessages(targetIp)
       if (pendings.length > 0) {
         console.log(`[Main] 连接成功，重试 ${pendings.length} 条未发送消息给 ${targetIp}`)
@@ -345,7 +341,6 @@ function registerIpcHandlers() {
     const timestamp = new Date().toISOString()
     const userName = getConfig('user_name', '我')
 
-    // [Bugfix] 无论 TCP 是否成功，先存到数据库（保证不丢失）
     insertMessage({
       deviceIp: targetIp,
       deviceName: '对方',
@@ -353,11 +348,10 @@ function registerIpcHandlers() {
       contentType: 'text',
       isSelf: 1,
       messageId,
-      status: 'pending',  // 先标记为发送中
+      status: 'pending',
       createdAt: timestamp
     })
 
-    // 尝试通过 TCP 发送
     const sent = sendMessage(targetIp, {
       type: 'text',
       content,
@@ -366,15 +360,11 @@ function registerIpcHandlers() {
       fromName: userName
     })
 
-    // [Bugfix] 根据发送结果更新状态
     updateMessageStatus(messageId, sent ? 'sent' : 'failed')
-
-    // [Bugfix] 无论是否连接成功，都更新联系人
-    // 这样用户断联发送后退出再进入，依然能在「最近联系人」里看到对方
     upsertContact({ deviceIp: targetIp, deviceName: '对方', lastMessage: content })
 
     return {
-      code: 200,  // 总是返回 200，因为消息已存库
+      code: 200,
       data: { success: sent, messageId, timestamp, status: sent ? 'sent' : 'failed' },
       message: sent ? 'success' : '消息已保存，待重连后发送'
     }
@@ -385,23 +375,19 @@ function registerIpcHandlers() {
 
     let imageBuffer, fileName, fileSize, relPath
 
-    // 支持文件路径和 data URL（粘贴/拖拽产生）
     if (filePath.startsWith('data:')) {
-      // data URL：保存到本地并读取
       const saved = saveBase64Image(filePath, 'paste')
       relPath = saved.relativePath
       imageBuffer = fs.readFileSync(saved.savedPath)
       fileName = saved.fileName
       fileSize = imageBuffer.length
     } else {
-      // 本地文件路径
       if (!fs.existsSync(filePath)) return { code: 404, data: null, message: '图片不存在' }
       const stat = fs.statSync(filePath)
       if (stat.size > 20 * 1024 * 1024) return { code: 1005, data: null, message: '图片不能超过20MB' }
-      fileName = require('path').basename(filePath)
+      fileName = path.basename(filePath)
       fileSize = stat.size
 
-      // 复制一份到本地图片目录
       const saved = saveImage(filePath, 'send')
       relPath = saved.relativePath
       imageBuffer = fs.readFileSync(saved.savedPath)
@@ -412,7 +398,6 @@ function registerIpcHandlers() {
     const userName = getConfig('user_name', '我')
     const base64Image = imageBuffer.toString('base64')
 
-    // [Bugfix] 无论 TCP 是否成功，先存到数据库
     insertMessage({
       deviceIp: targetIp,
       deviceName: '对方',
@@ -427,22 +412,18 @@ function registerIpcHandlers() {
       createdAt: timestamp
     })
 
-    // 尝试发送
     const sent = sendMessage(targetIp, {
       type: 'image',
       messageType: 'image',
       content: base64Image,
       fileName,
-      imageSize: fileSize,
+      imageSize,
       messageId,
       timestamp,
       fromName: userName
     })
 
-    // [Bugfix] 更新状态
     updateMessageStatus(messageId, sent ? 'sent' : 'failed')
-
-    // [Bugfix] 无论是否连接成功，都更新联系人
     upsertContact({ deviceIp: targetIp, deviceName: '对方', lastMessage: '[图片]' })
 
     return {
@@ -452,7 +433,7 @@ function registerIpcHandlers() {
     }
   })
 
-  // [Bugfix] 重试某设备的未发送消息（重连时调用）
+  // 重试未发送消息
   ipcMain.handle('invoke:retry-pending', async (_e, { deviceIp }) => {
     if (!deviceIp) return { code: 400, data: null, message: '设备IP不能为空' }
     const pendings = getPendingMessages(deviceIp)
@@ -470,10 +451,8 @@ function registerIpcHandlers() {
           fromName: userName
         }
       } else {
-        // 图片：重新读 base64 重发
         try {
-          const fs = require('fs')
-          const fullPath = require('path').join(app.getPath('userData'), 'LanChat', msg.image_path || msg.content)
+          const fullPath = path.join(app.getPath('userData'), 'LanChat', msg.image_path || msg.content)
           if (fs.existsSync(fullPath)) {
             const buf = fs.readFileSync(fullPath)
             payload = {
@@ -486,7 +465,7 @@ function registerIpcHandlers() {
               fromName: userName
             }
           }
-        } catch (e) { /* 跳过 */ }
+        } catch (e) { /* skip */ }
       }
 
       if (payload) {
@@ -503,7 +482,7 @@ function registerIpcHandlers() {
     return { code: 200, data: { retried: pendings.length, success: successCount }, message: 'success' }
   })
 
-  // [Bugfix] 删除消息
+  // 删除消息
   ipcMain.handle('invoke:delete-message', async (_e, { messageId }) => {
     if (!messageId) return { code: 400, data: null, message: '消息ID不能为空' }
     const success = deleteMessage(messageId)
@@ -514,17 +493,14 @@ function registerIpcHandlers() {
   ipcMain.handle('invoke:get-chat-history', async (_e, { deviceIp, page, pageSize }) => {
     if (!deviceIp) return { code: 400, data: null, message: '设备IP不能为空' }
     const result = getChatHistory(deviceIp, page || 1, pageSize || 20)
-    // 查历史时标记已读
     markAsRead(deviceIp)
     clearUnread(deviceIp)
     return { code: 200, data: result, message: 'success' }
   })
 
-  // [新增] 全量加载某设备的聊天记录（不翻页）
   ipcMain.handle('invoke:get-all-messages', async (_e, { deviceIp }) => {
     if (!deviceIp) return { code: 400, data: null, message: '设备IP不能为空' }
     const list = getAllMessages(deviceIp)
-    // 查历史时标记已读
     markAsRead(deviceIp)
     clearUnread(deviceIp)
     return { code: 200, data: { list }, message: 'success' }
@@ -555,15 +531,70 @@ function registerIpcHandlers() {
     if (stat.size > 20 * 1024 * 1024) return { code: 1005, data: null, message: '图片不能超过20MB' }
     return {
       code: 200,
-      data: { success: true, filePath, fileName: require('path').basename(filePath), fileSize: stat.size },
+      data: { success: true, filePath, fileName: path.basename(filePath), fileSize: stat.size },
       message: 'success'
     }
   })
 
   ipcMain.handle('invoke:get-image-path', async (_e, { relativePath }) => {
-    const fullPath = join(app.getPath('userData'), 'LanChat', relativePath)
+    const fullPath = path.join(app.getPath('userData'), 'LanChat', relativePath)
     return { code: 200, data: { fullPath }, message: 'success' }
   })
 
-  console.log('[IPC] 全部16个处理器注册完成')
+  // ===== 配置读写 =====
+  ipcMain.handle('invoke:get-all-config', async () => {
+    const config = getAllConfig()
+    return { code: 200, data: config, message: 'success' }
+  })
+
+  ipcMain.handle('invoke:set-config', async (_e, { key, value }) => {
+    if (!key) return { code: 400, data: null, message: '配置键不能为空' }
+    setConfig(key, value)
+    return { code: 200, data: null, message: 'success' }
+  })
+
+  // ===== 目录选择 =====
+  ipcMain.handle('invoke:select-directory', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: '选择保存目录',
+      properties: ['openDirectory', 'createDirectory']
+    })
+    if (result.canceled || result.filePaths.length === 0) {
+      return { code: 200, data: { success: false }, message: '用户取消' }
+    }
+    return { code: 200, data: { success: true, path: result.filePaths[0] }, message: 'success' }
+  })
+
+  // ===== 保存图片到指定位置 =====
+  ipcMain.handle('invoke:save-image-to-path', async (_e, { relativePath, defaultName }) => {
+    if (!relativePath) return { code: 400, data: null, message: '路径不能为空' }
+    const sourcePath = path.join(app.getPath('userData'), 'LanChat', relativePath)
+    if (!fs.existsSync(sourcePath)) return { code: 404, data: null, message: '源文件不存在' }
+
+    let saveDir = getConfig('save_location', '')
+    if (!saveDir || !fs.existsSync(saveDir)) {
+      saveDir = app.getPath('downloads')
+    }
+
+    const originalName = defaultName || path.basename(sourcePath)
+    let finalName = originalName
+    let destPath = path.join(saveDir, finalName)
+    let counter = 1
+    while (fs.existsSync(destPath)) {
+      const ext = path.extname(originalName)
+      const base = path.basename(originalName, ext)
+      finalName = `${base}_${counter}${ext}`
+      destPath = path.join(saveDir, finalName)
+      counter++
+    }
+
+    try {
+      fs.copyFileSync(sourcePath, destPath)
+      return { code: 200, data: { success: true, savedPath: destPath, saveDir }, message: 'success' }
+    } catch (e) {
+      return { code: 500, data: null, message: '保存失败: ' + e.message }
+    }
+  })
+
+  console.log('[IPC] 所有处理器注册完成')
 }

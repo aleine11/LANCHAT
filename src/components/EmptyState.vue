@@ -43,11 +43,11 @@ defineEmits(['refresh'])
   max-width: 360px;
 }
 .empty-icon { font-size: 56px; margin-bottom: 16px; }
-.empty-title { font-size: 16px; font-weight: 600; color: #303133; margin-bottom: 8px; }
-.empty-desc { font-size: 13px; color: #909399; margin-bottom: 16px; }
+.empty-title { font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+.empty-desc { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }
 .empty-tips {
-  padding: 12px 16px; background: #ECF5FF; border-radius: 8px;
-  font-size: 12px; color: #606266; text-align: left; line-height: 2;
+  padding: 12px 16px; background: var(--color-primary-bg); border-radius: 8px;
+  font-size: 12px; color: var(--text-regular); text-align: left; line-height: 2;
   margin-bottom: 16px;
 }
 .empty-tips strong { color: #409EFF; }

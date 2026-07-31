@@ -149,8 +149,8 @@ function handleImageFile(file) {
 
 <style scoped>
 .input-area {
-  background: white;
-  border-top: 1px solid #EBEEF5;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-color);
   padding: 10px 16px;
   flex-shrink: 0;
 }
@@ -162,12 +162,12 @@ function handleImageFile(file) {
   width: 30px; height: 30px;
   border: none; background: none;
   font-size: 18px; cursor: pointer; border-radius: 6px;
-  color: #909399; transition: all .15s;
+  color: var(--text-secondary); transition: all .15s;
   display: flex; align-items: center; justify-content: center;
 }
-.toolbar-btn:hover { background: #ECF5FF; color: #409EFF; }
-.hint-text { font-size: 11px; color: #C0C4CC; }
-/* [Bugfix] 拖动上边沿拉高输入框的手柄 */
+.toolbar-btn:hover { background: var(--color-primary-bg); color: #409EFF; }
+.hint-text { font-size: 11px; color: var(--text-placeholder); }
+/* 拖动上边沿拉高输入框的手柄 */
 .resize-handle {
   height: 8px;
   display: flex; align-items: center; justify-content: center;
@@ -178,7 +178,7 @@ function handleImageFile(file) {
 .resize-handle:hover .handle-bar { background: #409EFF; }
 .handle-bar {
   width: 40px; height: 3px;
-  background: #DCDFE6;
+  background: var(--border-color);
   border-radius: 2px;
   transition: background .15s;
 }
@@ -186,13 +186,14 @@ function handleImageFile(file) {
 .input-box {
   flex: 1;
   min-height: 38px; max-height: 200px;
-  border: 1px solid #EBEEF5; border-radius: 8px;
+  border: 1px solid var(--border-color); border-radius: 8px;
   padding: 8px 12px;
   font-size: 14px; font-family: inherit;
   resize: none; outline: none;
-  background: #F8F9FB; transition: border-color .2s;
+  color: var(--text-primary);
+  background: var(--bg-input); transition: border-color .2s;
 }
-.input-box:focus { border-color: #409EFF; background: white; }
+.input-box:focus { border-color: #409EFF; background: var(--bg-card); }
 .send-btn {
   height: 38px; padding: 0 20px;
   background: #409EFF; color: white;

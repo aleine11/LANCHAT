@@ -27,7 +27,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'invoke:get-recent-contacts',
       'invoke:get-unread-count',
       'invoke:select-image',
-      'invoke:get-image-path'
+      'invoke:get-image-path',
+      'invoke:get-all-config',
+      'invoke:set-config',
+      'invoke:select-directory',
+      'invoke:save-image-to-path'
     ]
     if (allowedChannels.includes(channel)) {
       return ipcRenderer.invoke(channel, ...args)

@@ -173,7 +173,7 @@ function formatTime(timeStr) {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #F0F3F7;
+  background: var(--bg-page);
 }
 .content {
   flex: 1;
@@ -189,20 +189,20 @@ function formatTime(timeStr) {
   margin-bottom: 6px;
 }
 .section-title {
-  font-size: 14px; font-weight: 600; color: #606266;
+  font-size: 14px; font-weight: 600; color: var(--text-regular);
   display: flex; align-items: center; gap: 8px;
 }
 .section-actions { display: flex; align-items: center; gap: 8px; }
 .section-count {
-  font-size: 12px; color: #909399;
-  background: #EBEEF5;
+  font-size: 12px; color: var(--text-secondary);
+  background: var(--bg-input);
   padding: 2px 10px; border-radius: 10px;
 }
 .refresh-btn {
   width: 28px; height: 28px;
-  border: 1px solid #EBEEF5; background: white;
+  border: 1px solid var(--border-color); background: var(--bg-card);
   border-radius: 8px; font-size: 14px; cursor: pointer;
-  color: #909399;
+  color: var(--text-secondary);
   display: flex; align-items: center; justify-content: center;
   transition: all .2s;
 }
@@ -225,12 +225,12 @@ function formatTime(timeStr) {
 }
 .recent-item {
   display: flex; align-items: center; gap: 12px;
-  background: white; padding: 14px 16px; border-radius: 10px;
+  background: var(--bg-card); padding: 14px 16px; border-radius: 10px;
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+  box-shadow: var(--box-shadow);
   transition: all .2s;
 }
-.recent-item:hover { background: #ECF5FF; }
+.recent-item:hover { background: var(--color-primary-bg); }
 .recent-avatar {
   width: 40px; height: 40px; background: #E8F4FD;
   border-radius: 10px;
@@ -238,13 +238,13 @@ function formatTime(timeStr) {
   font-size: 20px; flex-shrink: 0;
 }
 .recent-info { flex: 1; min-width: 0; }
-.recent-name { font-size: 14px; font-weight: 600; }
+.recent-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .recent-msg {
-  font-size: 12px; color: #909399;
+  font-size: 12px; color: var(--text-secondary);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   margin-top: 2px;
 }
-.recent-time { font-size: 11px; color: #C0C4CC; flex-shrink: 0; }
+.recent-time { font-size: 11px; color: var(--text-placeholder); flex-shrink: 0; }
 .recent-badge {
   background: #F56C6C; color: white;
   font-size: 11px; min-width: 18px; height: 18px;
@@ -253,7 +253,7 @@ function formatTime(timeStr) {
   padding: 0 5px;
 }
 /* 滚动条 */
-.content::-webkit-scrollbar { width: 5px; }
+.content::-webkit-scrollbar { width: 10px; }
 .content::-webkit-scrollbar-track { background: transparent; }
-.content::-webkit-scrollbar-thumb { background: #d0d5dd; border-radius: 3px; }
+.content::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 5px; }
 </style>

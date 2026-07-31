@@ -29,11 +29,11 @@ const deviceIcon = computed(() => {
 
 <style scoped>
 .device-card {
-  background: white;
+  background: var(--bg-card);
   border-radius: 14px;
   padding: 20px;
   text-align: center;
-  box-shadow: 0 2px 16px rgba(0,0,0,.07);
+  box-shadow: var(--box-shadow);
   cursor: pointer;
   transition: all .25s;
   border: 2px solid transparent;
@@ -41,7 +41,7 @@ const deviceIcon = computed(() => {
 }
 .device-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  box-shadow: var(--box-shadow-hover);
   border-color: #66B1FF;
 }
 .device-card:active { transform: translateY(-1px); }
@@ -59,20 +59,21 @@ const deviceIcon = computed(() => {
 .device-icon {
   width: 56px; height: 56px;
   margin: 0 auto 12px;
-  background: #ECF5FF;
+  background: var(--color-primary-bg);
   border-radius: 16px;
   display: flex; align-items: center; justify-content: center;
   font-size: 28px;
 }
 .device-name {
   font-size: 15px; font-weight: 600;
+  color: var(--text-primary);
   margin-bottom: 12px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .device-action {
   display: inline-block;
   padding: 6px 18px;
-  background: #ECF5FF;
+  background: var(--color-primary-bg);
   color: #409EFF;
   border-radius: 20px;
   font-size: 13px;

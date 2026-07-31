@@ -38,15 +38,16 @@ function close() { window.electronAPI?.closeWindow() }
   flex-shrink: 0;
 }
 .titlebar.blue { background: #409EFF; }
-.titlebar.white { background: #fff; border-bottom: 1px solid #EBEEF5; }
+.titlebar.white { background: #fff; border-bottom: 1px solid var(--border-color); }
+[data-theme="dark"] .titlebar.white { background: #252538; }
 
 .titlebar-left {
   display: flex; align-items: center; gap: 10px;
-  -webkit-app-region: no-drag;  /* [Bugfix] 返回按钮可点击 */
+  -webkit-app-region: no-drag;
   font-size: 14px; font-weight: 600;
 }
 .blue .titlebar-left { color: white; }
-.white .titlebar-left { color: #303133; }
+.white .titlebar-left { color: var(--text-primary); }
 
 .titlebar-right {
   display: flex; gap: 4px;
@@ -62,8 +63,8 @@ function close() { window.electronAPI?.closeWindow() }
 }
 .blue .titlebar-btn { color: rgba(255,255,255,.85); }
 .blue .titlebar-btn:hover { background: rgba(255,255,255,.15); color: white; }
-.white .titlebar-btn { color: #606266; }
-.white .titlebar-btn:hover { background: #F0F3F7; }
+.white .titlebar-btn { color: var(--text-regular); }
+.white .titlebar-btn:hover { background: var(--bg-hover); }
 
 .titlebar-btn.close:hover { background: #E81123; color: white !important; }
 </style>
