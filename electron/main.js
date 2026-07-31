@@ -72,8 +72,20 @@ function createWindow() {
 
 // ===== M7 系统托盘 =====
 function createTray() {
-  // 用 16x16 的纯色图标
-  const icon = nativeImage.createEmpty()
+  // 托盘图标：使用项目内置的应用图标（32x32 png）
+  const trayIconPath = join(__dirname, '../src/assets/icons/tray.png')
+  let icon
+  try {
+    icon = nativeImage.createFromPath(trayIconPath)
+    if (icon.isEmpty()) {
+      icon = nativeImage.createEmpty()
+    } else {
+      // 缩放到托盘推荐尺寸 16x16
+      icon = icon.resize({ width: 16, height: 16 })
+    }
+  } catch (e) {
+    icon = nativeImage.createEmpty()
+  }
   tray = new Tray(icon)
   tray.setToolTip('LanChat')
 

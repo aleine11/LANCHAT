@@ -10,7 +10,6 @@
         <span class="status-text" :class="!connected ? 'offline' : ''">
           {{ connected ? '在线' : (connecting ? '连接中...' : '未连接') }}
         </span>
-        <span class="chat-ip">· {{ chatStore.currentIp }}</span>
       </template>
     </TitleBar>
 
@@ -176,7 +175,6 @@ onUnmounted(() => { if (retryUnsub) retryUnsub() })
 }
 .status-text { font-size: 12px; color: #67C23A; }
 .status-text.offline { color: #909399 !important; }
-.chat-ip { font-size: 12px; color: #C0C4CC; margin-left: 4px; }
 /* 消息区 */
 .messages-area {
   flex: 1; overflow-y: auto;

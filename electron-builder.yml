@@ -5,13 +5,30 @@ productName: LanChat
 copyright: Copyright © 2026 LanChat
 
 directories:
-  output: release
+  output: release2
   buildResources: build
 
 win:
+  icon: build/icon.ico
   target:
-    - target: dir
+    - target: nsis
       arch: [x64]
+
+# NSIS 安装包配置 — 用户可选择安装路径
+nsis:
+  oneClick: false                    # 非一键安装，显示安装向导
+  perMachine: false                  # 单用户安装（不需要管理员权限）
+  allowToChangeInstallationDirectory: true   # ✅ 允许用户选择安装目录
+  createDesktopShortcut: true        # 创建桌面快捷方式
+  createStartMenuShortcut: true      # 创建开始菜单快捷方式
+  shortcutName: LanChat              # 快捷方式名称
+  installerIcon: build/icon.ico      # 安装程序图标
+  uninstallerIcon: build/icon.ico    # 卸载程序图标
+  installerHeaderIcon: build/icon.ico
+  language: "2052"                   # 简体中文
+
+# 跳过 electron-rebuild（native 模块已经编译好了，直接复用）
+npmRebuild: false
 
 # 额外文件：把 .node 二进制从 asar 中分离（native 模块不能在 asar 里）
 extraResources:

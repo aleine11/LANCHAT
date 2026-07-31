@@ -6,7 +6,6 @@
       {{ deviceIcon }}
     </div>
     <div class="device-name" :title="device.name">{{ device.name }}</div>
-    <div class="device-ip">{{ device.ip }}</div>
     <span class="device-action">开始聊天</span>
   </div>
 </template>
@@ -67,13 +66,8 @@ const deviceIcon = computed(() => {
 }
 .device-name {
   font-size: 15px; font-weight: 600;
-  margin-bottom: 4px;
+  margin-bottom: 12px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.device-ip {
-  font-size: 12px; color: #909399;
-  font-family: 'Courier New', monospace;
-  margin-bottom: 10px;
 }
 .device-action {
   display: inline-block;

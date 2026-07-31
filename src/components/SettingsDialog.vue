@@ -26,8 +26,7 @@
         <!-- 本机信息 -->
         <div class="form-group">
           <label>📋 本机信息</label>
-          <div class="info-row"><span>本机IP</span><span>{{ userStore.ip }}</span></div>
-          <div class="info-row"><span>主机名</span><span>—</span></div>
+          <div class="info-row"><span>显示名称</span><span>{{ userStore.name || '—' }}</span></div>
           <div class="info-row"><span>UDP 端口</span><span>5678</span></div>
           <div class="info-row"><span>TCP 端口</span><span>5679</span></div>
         </div>

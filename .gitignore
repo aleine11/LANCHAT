@@ -5,6 +5,7 @@ node_modules/
 dist/
 out/
 release/
+release2/
 dist-electron/
 
 # IDE
@@ -31,7 +32,16 @@ docs/知识点笔记.md
 
 # Electron
 electron/dist/
-"release/"  
-"*.asar"  
-"*.asar.unpacked"  
-"release2/"  
+*.asar
+*.asar.unpacked
+
+# Development artifacts (prototypes, raw images, scripts, generated icons)
+产品原型/
+img/
+build/
+scripts/
+src/assets/icons/
+.cached-electron/
+dist-release/
+
+# Auto-generated temp files (none currently)

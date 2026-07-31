@@ -4,7 +4,6 @@
     <div class="my-avatar">🖥️</div>
     <div class="my-info">
       <div class="my-name">{{ userStore.name }}</div>
-      <div class="my-ip">📡 {{ userStore.ip }} : 5679</div>
       <div class="my-stats">
         <span class="status-dot"></span>
         <span>在线</span>
@@ -44,7 +43,6 @@ const deviceStore = useDeviceStore()
 }
 .my-info { flex: 1; }
 .my-name { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
-.my-ip { font-size: 13px; opacity: .85; font-family: 'Courier New', monospace; }
 .my-stats {
   display: flex; align-items: center; gap: 6px;
   margin-top: 6px; font-size: 13px; opacity: .9;
